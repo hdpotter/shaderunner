@@ -38,6 +38,7 @@ pub struct RenderGame {
     renderer: Renderer,
     ui_manager: UIManager,
     window: Window,
+    camera: Camera,
 }
 
 impl RenderGame {
@@ -86,11 +87,14 @@ impl Game for RenderGame {
             renderer,
             ui_manager,
             window,
+            camera,
         }
     
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.camera.resize(&new_size);
+        self.renderer.update_camera(&self.camera);
         self.renderer.resize(&new_size);
     }
 

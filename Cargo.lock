@@ -523,31 +523,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
-name = "echoes_graphics"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "cfg-if",
- "cgmath",
- "chrono",
- "console_error_panic_hook",
- "console_log",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "generational-arena",
- "log",
- "pollster",
- "rapier3d",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "web-time",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "ecolor"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1576,6 +1551,31 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.79",
+]
+
+[[package]]
+name = "shaderunner"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "cfg-if",
+ "cgmath",
+ "chrono",
+ "console_error_panic_hook",
+ "console_log",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "generational-arena",
+ "log",
+ "pollster",
+ "rapier3d",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

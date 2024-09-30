@@ -25,7 +25,7 @@ pub async fn run_program<T: Program + 'static>() {
 
     let event_loop = EventLoop::new().unwrap();
     let window = winit::window::WindowBuilder::new()
-        .with_title("hex-based city builder in rust!")
+        .with_title("shaderunner app")
         .with_inner_size(size)
         .build(&event_loop).unwrap();
 
