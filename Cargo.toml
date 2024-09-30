@@ -1,0 +1,39 @@
+[package]
+name = "echoes_graphics"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cfg-if = "1"
+log = "^0.4"
+winit = { version = "0.29.15" }
+wgpu = "0.19.4"
+bytemuck = { version = "1.14.0", features = ["derive"] }
+cgmath = "0.18.0"
+pollster = "0.3.0"
+chrono = "0.4.31"
+generational-arena = "0.2.9"
+egui-winit = { version = "0.27.2", default-features = false }
+egui-wgpu = "0.27.2"
+egui = "0.27.2"
+rapier3d = "0.17.2"
+web-time = "^0.2"
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "1.0"
+chrono = { version = "0.4.31", features = ["wasmbind"]}
+wgpu = { version = "0.19.4", features = ["webgl"]}
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+]}
