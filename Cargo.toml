@@ -2,6 +2,10 @@
 name = "shaderunner"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "A rendering layer on top of wgpu, winit, and egui."
+repository = "https://github.com/hdpotter/shaderunner"
+readme = "README.md"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
