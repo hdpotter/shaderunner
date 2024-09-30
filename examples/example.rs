@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use crate::{renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::{game_loop::GameLoop, EventHandler, Game, Program}};
+use shaderunner::{renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::{game_loop::GameLoop, EventHandler, Game, Program}};
 use winit::{event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::Window};
 
 
@@ -48,11 +48,11 @@ impl Game for RenderGame {
     async fn new(window: Window) -> RenderGame {
         let mut renderer = Renderer::new(&window).await;
     
-        let cube_mesh = crate::test_assets::cube_mesh();
+        let cube_mesh = shaderunner::test_assets::cube_mesh();
         let cube_mesh = renderer.add_mesh(&cube_mesh);
         let _instance0 = renderer.add_instance(cube_mesh, Transform::from_translation(Vector3::new(-0.5, -0.5, -0.5)));
     
-        let sphere_mesh = crate::test_assets::simple_sphere_mesh(1.0, 16, Vector3::new(1.0, 1.0, 1.0));
+        let sphere_mesh = shaderunner::test_assets::simple_sphere_mesh(1.0, 16, Vector3::new(1.0, 1.0, 1.0));
         let sphere_mesh = renderer.add_mesh(&sphere_mesh);
         let _instance1 = renderer.add_instance(sphere_mesh, Transform::from_translation(Vector3::new(0.5, 0.5, 0.5)));
     
@@ -135,5 +135,13 @@ pub async fn run() {
         }
     }
 
-    crate::window::run_program::<EchoesProgram<RenderGame>>().await;
+    shaderunner::window::run_program::<EchoesProgram<RenderGame>>().await;
+}
+
+pub fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
+
+    pollster::block_on(
+        shaderunner::window::run_program::<shaderunner::example::EchoesProgram<RenderGame>>()
+    );
 }
