@@ -10,3 +10,5 @@ pub mod color_normal_vertex;
 pub mod test_assets;
 
 pub mod ui_manager;
+
+pub mod game_program;

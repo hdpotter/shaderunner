@@ -1,38 +1,9 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::{game_loop::GameLoop, EventHandler, Game, Program}};
-use winit::{event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::Window};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::Game};
+use winit::{event::WindowEvent, window::Window};
 
-
-pub struct EchoesProgram<T: Game> {
-    event_manager: EventHandler,
-    game_loop: GameLoop,
-    game: T,
-}
-
-impl<T: Game> Program for EchoesProgram<T> {
-    fn new(window: Window) -> Self {
-        EchoesProgram {
-            event_manager: EventHandler::new(),
-            game_loop: GameLoop::default(),
-            game: pollster::block_on(T::new(window)),
-        }
-    }
-
-    fn handle_event(
-        &mut self,
-        event: Event<()>,
-        elwt: &EventLoopWindowTarget<()>,
-    ) {
-        self.event_manager.handle_event(
-            &mut self.game_loop,
-            &mut self.game,
-            event,
-            elwt,
-        );
-    }
-}
 
 pub struct RenderGame {
     renderer: Renderer,
@@ -135,13 +106,13 @@ pub async fn run() {
         }
     }
 
-    shaderunner::window::run_program::<EchoesProgram<RenderGame>>().await;
+    shaderunner::window::run_program::<GameProgram<RenderGame>>().await;
 }
 
 pub fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     pollster::block_on(
-        shaderunner::window::run_program::<EchoesProgram<RenderGame>>()
+        shaderunner::window::run_program::<GameProgram<RenderGame>>()
     );
 }
