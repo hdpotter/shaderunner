@@ -65,6 +65,7 @@ pub async fn run_program<T: Program + 'static>() {
 
 pub trait Game {
     #[allow(async_fn_in_trait)]
+    /// Create a new game instance.  Do not allow `window` to drop; this will cause a swap chain changed error.
     async fn new(window: Window) -> Self;
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>);
     fn input(&mut self, event: &WindowEvent) -> bool;
