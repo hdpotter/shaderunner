@@ -2,21 +2,21 @@ use std::time::Duration;
 
 use cgmath::Vector3;
 use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::Game};
-use winit::{event::WindowEvent, window::Window};
+use winit::{event::Event, window::Window};
 
 
-pub struct RenderGame {
+pub struct ExampleGame {
     renderer: Renderer,
     ui_manager: UIManager,
     window: Window,
     camera: Camera,
 }
 
-impl RenderGame {
+impl ExampleGame {
 }
 
-impl Game for RenderGame {
-    async fn new(window: Window) -> RenderGame {
+impl Game for ExampleGame {
+    async fn new(window: Window) -> ExampleGame {
         let mut renderer = Renderer::new(&window).await;
     
         let cube_mesh = shaderunner::test_assets::cube_mesh();
@@ -54,7 +54,7 @@ impl Game for RenderGame {
         
         let ui_manager = UIManager::new(&window);
     
-        RenderGame {
+        ExampleGame {
             renderer,
             ui_manager,
             window,
@@ -63,13 +63,13 @@ impl Game for RenderGame {
     
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    fn resize(&mut self, new_size: &winit::dpi::PhysicalSize<u32>) {
         self.camera.resize(&new_size);
         self.renderer.update_camera(&self.camera);
         self.renderer.resize(&new_size);
     }
 
-    fn input(&mut self, _event: &WindowEvent) -> bool {
+    fn input(&mut self, _event: &Event<()>) -> bool {
         false
     }
 
@@ -106,13 +106,13 @@ pub async fn run() {
         }
     }
 
-    shaderunner::window::run_program::<GameProgram<RenderGame>>().await;
+    shaderunner::window::run_program::<GameProgram<ExampleGame>>().await;
 }
 
 pub fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     pollster::block_on(
-        shaderunner::window::run_program::<GameProgram<RenderGame>>()
+        shaderunner::window::run_program::<GameProgram<ExampleGame>>()
     );
 }

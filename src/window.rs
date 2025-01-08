@@ -67,8 +67,8 @@ pub trait Game {
     #[allow(async_fn_in_trait)]
     /// Create a new game instance.  Do not allow `window` to drop; this will cause a swap chain changed error.
     async fn new(window: Window) -> Self;
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>);
-    fn input(&mut self, event: &WindowEvent) -> bool;
+    fn resize(&mut self, new_size: &winit::dpi::PhysicalSize<u32>);
+    fn input(&mut self, event: &Event<()>) -> bool;
     fn update(&mut self);
     fn render(&mut self, since_render: Duration, since_update: Duration);
 }
@@ -89,9 +89,9 @@ impl EventHandler {
         event: Event<()>,
         elwt: &EventLoopWindowTarget<()>,
     ) {
-        match event {
+        let intercepted = match event {
             Event::WindowEvent {
-                event: window_event,
+                event: ref window_event,
                 ..
             } =>  {
                 self.handle_window_event(
@@ -99,7 +99,7 @@ impl EventHandler {
                     game,
                     window_event,
                     elwt,
-                );
+                )
             },
             // Event::RedrawRequested(_) => {
             //   game.render(game_loop.since_render(), game_loop.since_update());  
@@ -110,8 +110,13 @@ impl EventHandler {
             Event::AboutToWait => {
                 let control_flow = game_loop.update_or_render(game);
                 elwt.set_control_flow(control_flow);
+                true
             }
-            _ => ()
+            _ => false
+        };
+
+        if !intercepted {
+            game.input(&event);
         }
     }
 
@@ -119,24 +124,24 @@ impl EventHandler {
         &mut self,
         game_loop: &GameLoop,
         game: &mut T,
-        event: WindowEvent,
+        event: &WindowEvent,
         elwt: &EventLoopWindowTarget<()>,
-    ) {
-    
-        if !game.input(&event) {
+    ) -> bool {
             match event {
                 WindowEvent::CloseRequested => {
                     elwt.exit();
+                    true
                 },
                 WindowEvent::Resized(physical_size) => {
                     game.resize(physical_size);
+                    true
                 }
                 WindowEvent::RedrawRequested => {
                     game.render(game_loop.since_render(), game_loop.since_update());
+                    true
                 }
-                _ => ()
+                _ => false
             }
-        }
     }
 }
 
