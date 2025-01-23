@@ -78,9 +78,10 @@ impl Game for ExampleGame {
     }
 
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
-        self.renderer.draw_line_blue(Vector3::new(0_f32, 0_f32, 0_f32), Vector3::new(10_f32, 10_f32, 10_f32));
+        // draw a green_line in immediate mode
+        self.renderer.draw_line_green(Vector3::new(-10_f32, -10_f32, -10_f32), Vector3::new(10_f32, 10_f32, 10_f32));
         
-        // self.renderer.render();
+        // render ui
         let ui_frame = self.ui_manager.run(&self.window);
         self.renderer.render_with_ui(Some(&ui_frame));
     }
