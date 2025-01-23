@@ -78,6 +78,8 @@ impl Game for ExampleGame {
     }
 
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
+        self.renderer.draw_line_blue(Vector3::new(0_f32, 0_f32, 0_f32), Vector3::new(10_f32, 10_f32, 10_f32));
+        
         // self.renderer.render();
         let ui_frame = self.ui_manager.run(&self.window);
         self.renderer.render_with_ui(Some(&ui_frame));
@@ -110,7 +112,7 @@ pub async fn run() {
 }
 
 pub fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+    // std::env::set_var("RUST_BACKTRACE", "1");
 
     pollster::block_on(
         shaderunner::window::run_program::<GameProgram<ExampleGame>>()

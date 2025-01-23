@@ -1,12 +1,15 @@
+use cgmath::Vector3;
+use line_renderer::LineRenderer;
 use winit::window::Window;
 
-use crate::{scene::{Transform, camera::Camera, light::{DirectionalLight, AmbientLight}}, color_normal_vertex::ColorNormalVertex, mesh::{Vertex, Mesh}};
+use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh::{Mesh, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}};
 
 use self::{gpu_resources::{Resources, MeshHandle}, instances::{InstanceListResource, InstanceHandle, InstanceData}};
 
 pub mod pipeline;
 
 pub mod gpu_resources;
+pub mod line_renderer;
 pub mod instances;
 pub mod resizable_buffer;
 pub mod texture;
@@ -41,8 +44,10 @@ pub struct Renderer {
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
     queue: wgpu::Queue,
-    pipeline: wgpu::RenderPipeline,
+    tri_pipeline: wgpu::RenderPipeline,
+    line_pipeline: wgpu::RenderPipeline,
 
+    line_renderer: LineRenderer,
     ui_renderer: egui_wgpu::Renderer,
 
     resources: Resources,
@@ -114,30 +119,68 @@ impl Renderer {
         let resources = Resources::new(&device, &surface_config);
 
         let depth_format = Some(wgpu::TextureFormat::Depth32Float);
-
-        let pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("render pipeline layout"),
-                bind_group_layouts: &[
-                    resources.camera_bind_group_layout(),
-                ],
-                push_constant_ranges: &[],
-            });
-
+        
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("render pipeline layout"),
+            bind_group_layouts: &[
+                resources.camera_bind_group_layout(),
+            ],
+            push_constant_ranges: &[],
+        });
+            
+        let tri_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("shader"),
+                label: Some("tri_shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            };
+            let shader = device.create_shader_module(shader);
+
+            let tri_primitive = wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
             };
 
             pipeline::create_render_pipeline(
                 &device,
-                &layout,
+                &pipeline_layout,
                 surface_config.format,
                 depth_format,
                 &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
-                shader,
+                &shader,
+                tri_primitive,
             )
         };
+
+        let line_pipeline = {
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("line_shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("line_shader.wgsl").into()),
+            };
+            let shader = device.create_shader_module(shader);
+
+            let line_primitive = wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                front_face: wgpu::FrontFace::Ccw,
+                .. Default::default()
+            };
+
+            pipeline::create_render_pipeline(
+                &device,
+                &pipeline_layout,
+                surface_config.format,
+                depth_format,
+                &[ColorVertex::vertex_buffer_layout()],
+                &shader,
+                line_primitive,
+            )
+        };
+
+        let line_renderer = LineRenderer::new(&device);
 
         let ui_renderer = egui_wgpu::Renderer::new(
             &device,
@@ -152,8 +195,10 @@ impl Renderer {
             surface,
             surface_config,
             queue,
-            pipeline,
+            tri_pipeline,
+            line_pipeline,
 
+            line_renderer,
             ui_renderer,
 
             resources,
@@ -186,6 +231,9 @@ impl Renderer {
                 panic!();
             },
         };
+
+        // update line renderer
+        self.line_renderer.update_buffer_and_clear(&self.device, &self.queue);
 
 
         // let output = self.surface.get_current_texture().unwrap();
@@ -257,11 +305,20 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.pipeline);
 
+            // draw triangles
+            render_pass.set_pipeline(&self.tri_pipeline);
             for instance_list in self.resources.iterate_instance_lists() {
                 self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
             }
+
+            // draw lines
+            render_pass.set_pipeline(&self.line_pipeline);
+            self.line_renderer.render(
+                &mut render_pass,
+                self.resources.camera_bind_group(),
+            );
+            
 
             // draw ui
             if let Some(inner_ui_frame) = ui_frame {
@@ -326,6 +383,39 @@ impl Renderer {
 
     pub fn update_light(&mut self, directional_light: &DirectionalLight, ambient_light: &AmbientLight) {
         self.resources.update_light(directional_light, ambient_light, &self.queue);
+    }
+
+    // ================================================================
+    // immediate mode line drawing
+    // ================================================================
+    
+    ///Draws a line in immediate mode - i.e., this function draws a line on the next `render()` call only.
+    pub fn draw_line(&mut self, start: ColorVertex, end: ColorVertex) {
+        self.line_renderer.draw_line(start, end);
+    }
+
+    ///Draws a red line in immediate mode - i.e., this function draws a line on the next `render()` call only.
+    pub fn draw_line_red(&mut self, start: Vector3<f32>, end: Vector3<f32>) {
+        let red = Vector3::new(1_f32, 0_f32, 0_f32);
+        let start = ColorVertex::new(start, red);
+        let end = ColorVertex::new(end, red);
+        self.draw_line(start, end);
+    }
+
+    ///Draws a green line in immediate mode - i.e., this function draws a line on the next `render()` call only.
+    pub fn draw_line_green(&mut self, start: Vector3<f32>, end: Vector3<f32>) {
+        let green = Vector3::new(0_f32, 1_f32, 0_f32);
+        let start = ColorVertex::new(start, green);
+        let end = ColorVertex::new(end, green);
+        self.draw_line(start, end);
+    }
+
+    ///Draws a blue line in immediate mode - i.e., this function draws a line on the next `render()` call only.
+    pub fn draw_line_blue(&mut self, start: Vector3<f32>, end: Vector3<f32>) {
+        let blue = Vector3::new(0_f32, 0_f32, 1_f32);
+        let start = ColorVertex::new(start, blue);
+        let end = ColorVertex::new(end, blue);
+        self.draw_line(start, end);
     }
 
 }

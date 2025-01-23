@@ -13,8 +13,8 @@ impl ResizableBuffer {
     }
 
     pub fn size(&self) -> u32 {
-        panic!("not supported");
-        // self.size
+        // panic!("not supported"); // todo: investigate why this was here
+        self.size
     }
 
     pub fn buffer(&self) -> &wgpu::Buffer {
@@ -31,11 +31,12 @@ impl ResizableBuffer {
             usage,
             mapped_at_creation: false,
         });
+        let size = 0;
 
         ResizableBuffer {
             buffer,
             usage,
-            size: 0,
+            size,
         }
     }
 
@@ -54,10 +55,9 @@ impl ResizableBuffer {
             });
         }
 
-        // upate buffer buffer
+        // update buffer buffer
         queue.write_buffer(&self.buffer, 0, data);
         self.size = data.len() as u32;
-        
     }
 
     const LABEL: &'static str = "resizable buffer";

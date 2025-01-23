@@ -6,6 +6,7 @@ pub mod mesh;
 pub mod scene;
 
 pub mod color_normal_vertex;
+pub mod color_vertex;
 
 pub mod test_assets;
 
