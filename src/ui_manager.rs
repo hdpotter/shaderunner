@@ -17,6 +17,7 @@ impl UIManager {
             window,
             Some(1.0),
             None,
+            None,
         );
 
         UIManager {

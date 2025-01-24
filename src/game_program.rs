@@ -1,4 +1,4 @@
-use winit::{event::Event, event_loop::EventLoopWindowTarget, window::Window};
+use winit::{event::Event, event_loop::ActiveEventLoop, window::Window};
 
 use crate::window::{game_loop::GameLoop, EventHandler, Game, Program};
 
@@ -20,13 +20,13 @@ impl<T: Game> Program for GameProgram<T> {
     fn handle_event(
         &mut self,
         event: Event<()>,
-        elwt: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) {
         self.event_manager.handle_event(
             &mut self.game_loop,
             &mut self.game,
             event,
-            elwt,
+            event_loop,
         );
     }
 }

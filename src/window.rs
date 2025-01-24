@@ -98,7 +98,7 @@ pub async fn run_program<T: Program + 'static>() {
 
     let mut outer_program = OuterProgram::<T>::new();
 
-    event_loop.run_app(&mut outer_program);
+    event_loop.run_app(&mut outer_program).unwrap();
 
 }
 

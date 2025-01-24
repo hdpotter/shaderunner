@@ -49,10 +49,10 @@ impl LineRenderer {
 
     }
 
-    pub fn render<'a, 'b: 'a>(
-        &'a self,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        camera_bind_group: &'b wgpu::BindGroup,
+    pub fn render(
+        &self,
+        render_pass: &mut wgpu::RenderPass,
+        camera_bind_group: &wgpu::BindGroup,
     ) {
         if self.buffer.size() > 0 {
             render_pass.set_vertex_buffer(0, self.buffer.buffer().slice(0..self.buffer.size() as u64));

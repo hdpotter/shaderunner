@@ -93,6 +93,7 @@ impl Renderer {
                     wgpu::Limits::default()
                 },
                 label: None,
+                memory_hints: Default::default(),
             },
             None,
         ).await.unwrap();
@@ -187,6 +188,7 @@ impl Renderer {
             surface_config.format,
             depth_format,
             1,
+            false,
         );
 
 
@@ -325,7 +327,7 @@ impl Renderer {
                
                 // render
                 self.ui_renderer.render(
-                    &mut render_pass,
+                    &mut render_pass.forget_lifetime(),
                     &inner_ui_frame.clipped_primitives,
                     &screen_descriptor,
                 );
@@ -336,11 +338,11 @@ impl Renderer {
         output.present();
     }
 
-    fn draw_instance_list<'a, 'b: 'a>(
-        &'b self,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        instance_list: &'b InstanceListResource,
-        camera_bind_group: &'b wgpu::BindGroup,
+    fn draw_instance_list(
+        &self,
+        render_pass: &mut wgpu::RenderPass,
+        instance_list: &InstanceListResource,
+        camera_bind_group: &wgpu::BindGroup,
     ) {
         let mesh = self.resources.get_mesh(instance_list.mesh());
         render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
