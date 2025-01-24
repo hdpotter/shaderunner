@@ -4,7 +4,7 @@ pub mod timing_stats;
 use std::time::Duration;
 
 use winit::{
-    dpi::PhysicalSize, event::*, event_loop::{EventLoop, EventLoopWindowTarget}, window::Window
+    application::ApplicationHandler, dpi::PhysicalSize, event::*, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowAttributes, WindowId}
 };
 
 use self::game_loop::GameLoop;
@@ -14,20 +14,66 @@ pub trait Program {
     fn handle_event(
         &mut self,
         event: Event<()>,
-        elwt: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     );
+
+}
+
+struct OuterProgram<T: Program> {
+    program: Option<T>,
+}
+
+impl<T: Program> OuterProgram<T> {
+    pub fn new() -> Self {
+        let program = None;
+        
+        Self {
+            program
+        }
+    }
+}
+
+impl<T: Program> ApplicationHandler for OuterProgram<T> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if let None = self.program { // can't use == because window doesn't implement PartialEq
+            let size = PhysicalSize { width: 640, height: 512 };
+            
+            let window_attributes = WindowAttributes::default()
+                .with_title("shaderunner app")
+                .with_inner_size(size);
+            let window = event_loop.create_window(window_attributes).unwrap();
+
+            self.program = Some(T::new(window));
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        if let Some(program) = self.program.as_mut() {
+            program.handle_event(Event::WindowEvent { window_id, event }, event_loop);
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        if let Some(program) = self.program.as_mut() {
+            program.handle_event(Event::DeviceEvent { device_id, event }, event_loop);
+        }
+    }
 
 }
 
 pub async fn run_program<T: Program + 'static>() {
 
-    let size = PhysicalSize { width: 640, height: 512 };
-
     let event_loop = EventLoop::new().unwrap();
-    let window = winit::window::WindowBuilder::new()
-        .with_title("shaderunner app")
-        .with_inner_size(size)
-        .build(&event_loop).unwrap();
 
     // event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -50,14 +96,9 @@ pub async fn run_program<T: Program + 'static>() {
         log::info!("size_result: {:?}", size_result);
     }
 
-    let mut program = T::new(window);
+    let mut outer_program = OuterProgram::<T>::new();
 
-    event_loop.run(move |event, elwt| {
-        program.handle_event(
-            event,
-            elwt,
-        );
-    }).expect("event loop run error");
+    event_loop.run_app(&mut outer_program);
 
 }
 
@@ -87,7 +128,7 @@ impl EventHandler {
         game_loop: &mut GameLoop,
         game: &mut T,
         event: Event<()>,
-        elwt: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) {
         let intercepted = match event {
             Event::WindowEvent {
@@ -98,7 +139,7 @@ impl EventHandler {
                     game_loop,
                     game,
                     window_event,
-                    elwt,
+                    event_loop,
                 )
             },
             // Event::RedrawRequested(_) => {
@@ -109,7 +150,7 @@ impl EventHandler {
             // },
             Event::AboutToWait => {
                 let control_flow = game_loop.update_or_render(game);
-                elwt.set_control_flow(control_flow);
+                event_loop.set_control_flow(control_flow);
                 true
             }
             _ => false
@@ -125,11 +166,11 @@ impl EventHandler {
         game_loop: &GameLoop,
         game: &mut T,
         event: &WindowEvent,
-        elwt: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) -> bool {
             match event {
                 WindowEvent::CloseRequested => {
-                    elwt.exit();
+                    event_loop.exit();
                     true
                 },
                 WindowEvent::Resized(physical_size) => {
