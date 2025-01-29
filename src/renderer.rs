@@ -1,45 +1,24 @@
 use cgmath::Vector3;
+use egui::Context;
 use line_renderer::LineRenderer;
 use winit::window::Window;
 
-use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh::{Mesh, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}};
+use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh::{Mesh, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
 
 use self::{gpu_resources::{Resources, MeshHandle}, instances::{InstanceListResource, InstanceHandle, InstanceData}};
 
-pub mod pipeline;
+pub mod create_pipeline;
 
 pub mod gpu_resources;
 pub mod line_renderer;
 pub mod instances;
 pub mod resizable_buffer;
 pub mod texture;
+pub mod pipeline;
 
-pub struct UIFrame {
-    pub clipped_primitives: Vec<egui_winit::egui::ClippedPrimitive>,
-    pub textures_delta: egui::TexturesDelta
-}
-
-// impl UIFrame {
-//     pub fn new(
-//         clipped_primitives: Vec<egui_winit::egui::ClippedPrimitive>,
-//         textures_delta: egui::TexturesDelta,
-//     ) -> Self {
-//         Self {
-//             clipped_primitives,
-//             textures_delta,
-//         }
-//     }
-
-//     pub fn manage_textures(
-//         &self,
-//         device: &wgpu::Device,
-//         queue: &wgpu::Queue,
-//     ) {
-
-//     }
-// }
 
 pub struct Renderer {
+    window: Window,
     device: wgpu::Device,
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
@@ -48,7 +27,8 @@ pub struct Renderer {
     line_pipeline: wgpu::RenderPipeline,
 
     line_renderer: LineRenderer,
-    ui_renderer: egui_wgpu::Renderer,
+    
+    ui_manager: UIManager,
 
     resources: Resources,
 }
@@ -65,7 +45,7 @@ impl Renderer {
 
     // pub fn size(&self) -> 
 
-    pub async fn new(window: &Window) -> Renderer {
+    pub async fn new(window: Window) -> Renderer {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::default();
@@ -146,7 +126,7 @@ impl Renderer {
                 conservative: false,
             };
 
-            pipeline::create_render_pipeline(
+            create_pipeline::create_render_pipeline(
                 &device,
                 &pipeline_layout,
                 surface_config.format,
@@ -170,7 +150,7 @@ impl Renderer {
                 .. Default::default()
             };
 
-            pipeline::create_render_pipeline(
+            create_pipeline::create_render_pipeline(
                 &device,
                 &pipeline_layout,
                 surface_config.format,
@@ -183,16 +163,16 @@ impl Renderer {
 
         let line_renderer = LineRenderer::new(&device);
 
-        let ui_renderer = egui_wgpu::Renderer::new(
+        let ui_manager = UIManager::new(
+            &window,
             &device,
-            surface_config.format,
+            &surface_config,
             depth_format,
-            1,
-            false,
         );
 
 
         Renderer {
+            window,
             device,
             surface,
             surface_config,
@@ -201,7 +181,7 @@ impl Renderer {
             line_pipeline,
 
             line_renderer,
-            ui_renderer,
+            ui_manager,
 
             resources,
         }
@@ -217,10 +197,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
-        self.render_with_ui(None);
-    }
 
-    pub fn render_with_ui(&mut self, ui_frame: Option<&UIFrame>) {
         // update instance buffers
         for instance_list in self.resources.iterate_instance_lists_mut() {
             instance_list.build_instance_buffer(&self.device, &self.queue);
@@ -246,40 +223,15 @@ impl Renderer {
         });
         
         // update ui resources
-        // todo: pull this into UIManager
-        let screen_descriptor = egui_wgpu::ScreenDescriptor {
-            size_in_pixels: [self.surface_config.width, self.surface_config.height],
-            pixels_per_point: 1.0,
-        };
-        if let Some(inner_ui_frame) = ui_frame {
-            // texture sets
-            for (texture_id, image_delta) in &inner_ui_frame.textures_delta.set {
-                self.ui_renderer.update_texture(
-                    &self.device,
-                    &self.queue,
-                    *texture_id,
-                    image_delta,
-                );
-            }
-
-            // texture frees
-            for texture_id in &inner_ui_frame.textures_delta.free {
-                self.ui_renderer.free_texture(texture_id);
-            }
-
-            // update
-            self.ui_renderer.update_buffers(
-                &self.device,
-                &self.queue,
-                &mut encoder,
-                &inner_ui_frame.clipped_primitives,
-                &screen_descriptor,
-            );
-        }
+        self.ui_manager.update_resources(
+            &self.device,
+            &self.queue,
+            &mut encoder,
+            &self.surface_config,
+        );
 
         // render pass
         {
-
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -323,15 +275,7 @@ impl Renderer {
             
 
             // draw ui
-            if let Some(inner_ui_frame) = ui_frame {
-               
-                // render
-                self.ui_renderer.render(
-                    &mut render_pass.forget_lifetime(),
-                    &inner_ui_frame.clipped_primitives,
-                    &screen_descriptor,
-                );
-            }
+            self.ui_manager.render(&mut render_pass.forget_lifetime()); // egui makes us forget lifetime
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -418,6 +362,14 @@ impl Renderer {
         let start = ColorVertex::new(start, blue);
         let end = ColorVertex::new(end, blue);
         self.draw_line(start, end);
+    }
+
+    // ================================================================
+    // immediate mode gui
+    // ================================================================
+
+    pub fn run_ui<F: FnMut(&Context)>(&mut self, gui: F) {
+        self.ui_manager.run(&self.window, gui);
     }
 
 }

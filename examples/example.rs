@@ -1,14 +1,12 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, ui_manager::UIManager, window::Game};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, window::Game};
 use winit::{event::Event, window::Window};
 
 
 pub struct ExampleGame {
     renderer: Renderer,
-    ui_manager: UIManager,
-    window: Window,
     camera: Camera,
 }
 
@@ -17,7 +15,7 @@ impl ExampleGame {
 
 impl Game for ExampleGame {
     async fn new(window: Window) -> ExampleGame {
-        let mut renderer = Renderer::new(&window).await;
+        let mut renderer = Renderer::new(window).await;
     
         let cube_mesh = shaderunner::test_assets::cube_mesh();
         let cube_mesh = renderer.add_mesh(&cube_mesh);
@@ -52,12 +50,8 @@ impl Game for ExampleGame {
     
         renderer.update_camera(&camera);
         
-        let ui_manager = UIManager::new(&window);
-    
         ExampleGame {
             renderer,
-            ui_manager,
-            window,
             camera,
         }
     
@@ -80,10 +74,19 @@ impl Game for ExampleGame {
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
         // draw a green_line in immediate mode
         self.renderer.draw_line_green(Vector3::new(-10_f32, -10_f32, -10_f32), Vector3::new(10_f32, 10_f32, 10_f32));
-        
-        // render ui
-        let ui_frame = self.ui_manager.run(&self.window);
-        self.renderer.render_with_ui(Some(&ui_frame));
+
+        // draw some UI in immediate mode
+        self.renderer.run_ui(|context| {
+            egui::TopBottomPanel::bottom("bottom_panel").show(&context, |ui| {
+                ui.label("Check out my awesome bottom panel!");
+                if ui.button("click to print to stdout").clicked() {
+                    println!("Hello, World!");
+                }
+            });
+        });
+
+        // render
+        self.renderer.render();
     }
 }
 
