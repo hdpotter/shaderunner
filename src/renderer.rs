@@ -34,13 +34,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    // todo: figure out how to handle these elegantly
-    pub fn device(&self) -> &wgpu::Device {
-        &self.device
-    }
-
-    pub fn queue(&self) -> &wgpu::Queue {
-        &self.queue
+    pub fn window(&self) -> &Window {
+        &self.window
     }
 
     // pub fn size(&self) -> 
@@ -194,6 +189,10 @@ impl Renderer {
             self.surface.configure(&self.device, &self.surface_config);
             self.resources.resize_depth_texture(&self.device, &self.surface_config);
         }
+    }
+
+    pub fn egui_event(&mut self, event: &winit::event::WindowEvent) -> bool {
+        self.ui_manager.on_window_event(&self.window, event)
     }
 
     pub fn render(&mut self) {

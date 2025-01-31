@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, window::Game};
-use winit::{event::Event, window::Window};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game};
+use winit::{event::WindowEvent, window::Window};
 
 
 pub struct ExampleGame {
     renderer: Renderer,
     camera: Camera,
+    frames: u32,
 }
 
 impl ExampleGame {
@@ -53,6 +54,7 @@ impl Game for ExampleGame {
         ExampleGame {
             renderer,
             camera,
+            frames: 0,
         }
     
     }
@@ -63,8 +65,8 @@ impl Game for ExampleGame {
         self.renderer.resize(&new_size);
     }
 
-    fn input(&mut self, _event: &Event<()>) -> bool {
-        false
+    fn window_event(&mut self, event: &WindowEvent) -> bool {
+        self.renderer.egui_event(event)
     }
 
     fn update(&mut self) {
@@ -78,12 +80,13 @@ impl Game for ExampleGame {
         // draw some UI in immediate mode
         self.renderer.run_ui(|context| {
             egui::TopBottomPanel::bottom("bottom_panel").show(&context, |ui| {
-                ui.label("Check out my awesome bottom panel!");
+                ui.label(format!("Check out my awesome bottom panel! {}", self.frames));
                 if ui.button("click to print to stdout").clicked() {
                     println!("Hello, World!");
                 }
             });
         });
+        self.frames += 1;
 
         // render
         self.renderer.render();

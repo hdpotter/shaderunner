@@ -26,7 +26,9 @@ impl UIManager {
         depth_format: Option<wgpu::TextureFormat>,
     ) -> UIManager {
         let context = egui::Context::default();
-        let viewport_id = context.viewport_id();
+        // let viewport_id = context.viewport_id();
+
+        let viewport_id = egui::viewport::ViewportId::ROOT;
 
         let winit_state = egui_winit::State::new(
             context,
@@ -74,6 +76,7 @@ impl UIManager {
         };
 
         if let Some(ui_frame) = &self.frame {
+
             // texture sets
             for (texture_id, image_delta) in &ui_frame.textures_delta.set {
                 self.ui_renderer.update_texture(
@@ -109,15 +112,9 @@ impl UIManager {
         
                 let full_output = self.winit_state.egui_ctx().run(raw_input, gui);
 
-                // let full_output = self.winit_state.egui_ctx().run(raw_input, |context| {
-                //     egui::TopBottomPanel::bottom("bottom_panel").show(&context, |ui| {
-                //         ui.label("Check out my awesome bottom panel!");
-                //         if ui.button("click to print to stdout").clicked() {
-                //             println!("Hello, World!");
-                //         }
-                //     });
-                // });
-        
+                self.winit_state.handle_platform_output(window, full_output.platform_output);
+                
+
                 // handle any extra platform output 
         
                 let clipped_primitives = self.winit_state.egui_ctx().tessellate(full_output.shapes, full_output.pixels_per_point);

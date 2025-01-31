@@ -3,7 +3,9 @@ use web_time::Instant;
 
 use winit::event_loop::ControlFlow;
 
-use super::{Game, timing_stats::TimingStats};
+use crate::game_program::Game;
+
+use super::timing_stats::TimingStats;
 
 
 
@@ -96,26 +98,38 @@ impl GameLoop {
         }
         
         // schedule next action
+
+        // overdue render and update
         if self.render_accumulator >= self.seconds_per_render && self.update_accumulator >= self.seconds_per_update {
             self.render_next = true;
             self.update_next = true;
             return ControlFlow::Poll;
+
+        // overdue render
         } else if self.render_accumulator >= self.seconds_per_render {
             self.render_next = true;
             self.update_next = false;
             return ControlFlow::Poll;
+
+        // overdue update
         } else if self.update_accumulator >= self.seconds_per_update {
             self.render_next = false;
             self.update_next = true;
             return ControlFlow::Poll;
+
+        // all caught up, render will be sooner
         } else if self.seconds_per_render - self.render_accumulator < self.seconds_per_update - self.update_accumulator {
             self.render_next = true;
             self.update_next = false;
             return ControlFlow::WaitUntil(now + chrono::Duration::to_std(&(self.seconds_per_render - self.render_accumulator)).unwrap());
+
+        // all caught up, update will be sooner
         } else if self.seconds_per_update - self.update_accumulator < self.seconds_per_render - self.render_accumulator {
             self.render_next = false;
             self.update_next = true;
             return ControlFlow::WaitUntil(now + chrono::Duration::to_std(&(self.seconds_per_update - self.update_accumulator)).unwrap());
+
+        // all caught up, next render and update equally far in future
         } else {
             self.render_next = true;
             self.update_next = true;
