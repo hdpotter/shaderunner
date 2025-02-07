@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.3] - 2024-02-06
+
+### Changed
+- Update wgpu to 23.0.1.
+- Update winit to 0.19.4.
+- Update egui and its wgpu and winit integrations to 0.30.0.
+- Move `UIManager` functionality into `Renderer::run_ui()`.
+- Modify `Game` trait to reflect new winit event callbacks.
+
+### Added
+- Immediate mode line drawing on `Renderer`.
+
+### Fixed
+- egui widgets now respond to events.
+
 ## [0.1.2] - 2024-10-25
 
 ### Changed
