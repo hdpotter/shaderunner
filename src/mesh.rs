@@ -35,6 +35,14 @@ pub struct Mesh<T: Vertex> {
 }
 
 impl<T: Vertex> Mesh<T> {
+    pub fn vertices(&self) -> &Vec<T> {
+        &self.vertices
+    }
+
+    pub fn indices(&self) -> &Vec<u32> {
+        &self.indices
+    }
+
     pub fn new() -> Self {
         Self {
             vertices: vec![],
