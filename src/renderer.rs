@@ -287,12 +287,13 @@ impl Renderer {
         instance_list: &InstanceListResource,
         camera_bind_group: &wgpu::BindGroup,
     ) {
-        let mesh = self.resources.get_mesh(instance_list.mesh());
-        render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
-        render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-        render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.set_bind_group(0, camera_bind_group, &[]);
-        render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
+        if let Some(mesh) = self.resources.get_mesh(instance_list.mesh()) {
+            render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+            render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_bind_group(0, camera_bind_group, &[]);
+            render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
+        }
     }
 
     // ================================================================

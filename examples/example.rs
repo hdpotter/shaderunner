@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game, Mesh};
 use winit::{event::WindowEvent, window::Window};
 
 
@@ -26,6 +26,10 @@ impl Game for ExampleGame {
         let sphere_mesh = renderer.add_mesh(&sphere_mesh);
         let _instance1 = renderer.add_instance(sphere_mesh, Transform::from_translation(Vector3::new(0.5, 0.5, 0.5)));
     
+        let empty_mesh = Mesh::new();
+        let empty_mesh = renderer.add_mesh(&empty_mesh);
+        let _empty_instance = renderer.add_instance(empty_mesh, Transform::identity());
+
         // let quad_mesh = echoes_graphics::test_assets::gradient_quad_mesh();
         // let quad_mesh = renderer.add_mesh(&quad_mesh);
         // let _instance2 = renderer.add_instance(quad_mesh, Transform::identity());

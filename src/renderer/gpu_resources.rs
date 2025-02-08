@@ -151,7 +151,7 @@ pub struct MeshHandle(Index);
 
 // manages buffers, bind group layouts, and bind groups
 pub struct Resources {
-    meshes: Arena<MeshResource>,
+    meshes: Arena<Option<MeshResource>>,
     instances: Arena<InstanceListResource>,
     camera: CameraResource,
     light: LightResource,
@@ -225,16 +225,23 @@ impl Resources {
     // meshes
     // ================================================================
     pub fn add_mesh(&mut self, mesh: &Mesh<ColorNormalVertex>, device: &wgpu::Device) -> MeshHandle {
-        // set up mesh
-        let vertex_buffer = mesh.export_vertex_buffer(device);
-        let index_buffer = mesh.export_index_buffer(device);
-        let index_count = mesh.index_count();
- 
-        let mesh_resource = MeshResource {
-            vertex_buffer,
-            index_buffer,
-            index_count,
+        let skip = mesh.indices().len() == 0;
+        
+        let mesh_resource = if skip {
+            None
+        } else {
+            // set up mesh
+            let vertex_buffer = mesh.export_vertex_buffer(device);
+            let index_buffer = mesh.export_index_buffer(device);
+            let index_count = mesh.index_count();
+     
+            Some(MeshResource {
+                vertex_buffer,
+                index_buffer,
+                index_count,
+            })
         };
+        
         let index = self.meshes.insert(mesh_resource);
         let mesh_handle =  MeshHandle(index);
 
@@ -246,9 +253,9 @@ impl Resources {
         mesh_handle
     }
 
-    pub fn get_mesh(&self, handle: MeshHandle) -> &MeshResource {
+    pub fn get_mesh(&self, handle: MeshHandle) -> Option<&MeshResource> {
         let MeshHandle(index) = handle;
-        self.meshes.get(index).unwrap()
+        self.meshes.get(index).unwrap().as_ref()
     }
 
     pub fn remove_mesh(&mut self, handle: MeshHandle) {
