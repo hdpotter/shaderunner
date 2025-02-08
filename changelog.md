@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4] - 2024-02-08
+
+### Added
+- Methods to inspect vertices and indices on `Mesh`.
+
+### Fixed
+- No longer crashes when trying to render meshes with no indices.
+
 ## [0.1.3] - 2024-02-06
 
 ### Changed
