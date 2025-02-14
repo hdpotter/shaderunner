@@ -4,7 +4,7 @@ use generational_arena::Arena;
 use mesh::Mesh;
 use pipeline::Pipeline;
 
-use crate::handle::Handle;
+use crate::{handle::Handle, MeshBuilder, Vertex};
 
 
 pub mod pipeline;
@@ -83,11 +83,13 @@ impl Resources {
         handle
     }
 
-    pub fn add_mesh(
+    pub fn add_mesh<T: Vertex>(
         &mut self,
+        mesh_builder: &MeshBuilder<T>,
+        device: &wgpu::Device,
     ) -> Handle<Mesh> {
         // create and add mesh
-        let mesh = Mesh { };
+        let mesh = Mesh::new_from_mesh_builder(mesh_builder, device);
         let handle = Handle::insert(&mut self.meshes, mesh);
 
         // add dependent list
