@@ -14,6 +14,8 @@ pub mod ui_manager;
 
 pub mod game_program;
 
+pub mod handle;
+
 
 
 pub use renderer::{instances::InstanceHandle, gpu_resources::MeshHandle, Renderer};
