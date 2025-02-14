@@ -1,14 +1,18 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game, Mesh};
-use winit::{event::WindowEvent, window::Window};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game, InstanceHandle, Mesh, MeshHandle};
+use winit::{dpi::PhysicalPosition, event::WindowEvent, window::Window};
 
 
 pub struct ExampleGame {
     renderer: Renderer,
     camera: Camera,
     frames: u32,
+    cursor_position: PhysicalPosition<f64>,
+
+    mesh_to_remove: Option<MeshHandle>,
+    instance_to_remove: Option<InstanceHandle>,
 }
 
 impl ExampleGame {
@@ -29,6 +33,10 @@ impl Game for ExampleGame {
         let empty_mesh = Mesh::new();
         let empty_mesh = renderer.add_mesh(&empty_mesh);
         let _empty_instance = renderer.add_instance(empty_mesh, Transform::identity());
+
+        let mesh_to_remove = shaderunner::test_assets::simple_sphere_mesh(1.02, 16, Vector3::new(0.0, 0.0, 1.0));
+        let mesh_to_remove = Some(renderer.add_mesh(&mesh_to_remove));
+        let instance_to_remove = Some(renderer.add_instance(mesh_to_remove.unwrap(), Transform::from_translation(Vector3::new(0.5, 0.5, 0.5))));
 
         // let quad_mesh = echoes_graphics::test_assets::gradient_quad_mesh();
         // let quad_mesh = renderer.add_mesh(&quad_mesh);
@@ -55,10 +63,17 @@ impl Game for ExampleGame {
     
         renderer.update_camera(&camera);
         
+        let frames = 0;
+        let cursor_position = PhysicalPosition::new(0_f64, 0_f64);
+
         ExampleGame {
             renderer,
             camera,
-            frames: 0,
+            frames,
+            cursor_position,
+
+            mesh_to_remove,
+            instance_to_remove,
         }
     
     }
@@ -70,16 +85,40 @@ impl Game for ExampleGame {
     }
 
     fn window_event(&mut self, event: &WindowEvent) -> bool {
+        if let WindowEvent::CursorMoved { position, .. } = event {
+            self.cursor_position = *position;
+        }
+        
         self.renderer.egui_event(event)
     }
 
     fn update(&mut self) {
+        if self.frames >= 60 {
+            if let Some(instance) = self.instance_to_remove {
+                self.renderer.remove_instance(instance);
+                self.instance_to_remove = None;
+            }
+        }
 
+        if self.frames >= 120 {
+            if let Some(mesh) = self.mesh_to_remove {
+                self.renderer.remove_mesh(mesh);
+                self.mesh_to_remove = None;
+            }
+        }
     }
 
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
         // draw a green_line in immediate mode
         self.renderer.draw_line_green(Vector3::new(-10_f32, -10_f32, -10_f32), Vector3::new(10_f32, 10_f32, 10_f32));
+
+        // draw box around cursor position
+        let ray = self.camera.pixel_to_ray(self.renderer.window().inner_size(), self.cursor_position.cast());
+        let position = ray.source() + 10_f32 * ray.direction();
+        self.renderer.draw_line_green(position - Vector3::unit_x()/4_f32, position + Vector3::unit_x()/4_f32);
+        self.renderer.draw_line_green(position - Vector3::unit_y()/4_f32, position + Vector3::unit_y()/4_f32);
+        self.renderer.draw_line_green(position - Vector3::unit_z()/4_f32, position + Vector3::unit_z()/4_f32);
+
 
         // draw some UI in immediate mode
         self.renderer.run_ui(|context| {
@@ -123,7 +162,7 @@ pub async fn run() {
 }
 
 pub fn main() {
-    // std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "1");
 
     pollster::block_on(
         shaderunner::window::run_program::<GameProgram<ExampleGame>>()

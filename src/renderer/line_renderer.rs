@@ -32,7 +32,7 @@ impl LineRenderer {
         self.vertices.push(end);
     }
 
-    pub fn update_buffer_and_clear(
+    pub fn update_buffer(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -44,20 +44,20 @@ impl LineRenderer {
                 bytemuck::cast_slice(&self.vertices),
             );
             self.count = self.vertices.len() as u32;
-            self.vertices.clear();
         }
-
+        
     }
-
-    pub fn render(
-        &self,
+    
+    pub fn render_and_clear(
+        &mut self,
         render_pass: &mut wgpu::RenderPass,
         camera_bind_group: &wgpu::BindGroup,
     ) {
-        if self.buffer.size() > 0 {
+        if self.vertices.len() > 0 {
             render_pass.set_vertex_buffer(0, self.buffer.buffer().slice(0..self.buffer.size() as u64));
             render_pass.set_bind_group(0, camera_bind_group, &[]);
             render_pass.draw(0..self.count, 0..1);
         }
+        self.vertices.clear();
     }
 }

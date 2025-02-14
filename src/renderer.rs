@@ -211,7 +211,7 @@ impl Renderer {
         };
 
         // update line renderer
-        self.line_renderer.update_buffer_and_clear(&self.device, &self.queue);
+        self.line_renderer.update_buffer(&self.device, &self.queue);
 
 
         // let output = self.surface.get_current_texture().unwrap();
@@ -267,7 +267,7 @@ impl Renderer {
 
             // draw lines
             render_pass.set_pipeline(&self.line_pipeline);
-            self.line_renderer.render(
+            self.line_renderer.render_and_clear(
                 &mut render_pass,
                 self.resources.camera_bind_group(),
             );
