@@ -1,6 +1,6 @@
 use cgmath::{Vector3, InnerSpace};
 
-use crate::{mesh::MeshBuilder, color_normal_vertex::ColorNormalVertex};
+use crate::{mesh_builder::MeshBuilder, color_normal_vertex::ColorNormalVertex};
 
 // pub fn test_scene(renderer: &Renderer) -> Scene {
 //     let mut camera = Camera::new(

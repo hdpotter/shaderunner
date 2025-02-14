@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use cgmath::{Vector3, Quaternion, Zero, Rotation3};
-use crate::mesh::{MeshBuilder, Vertex};
+use crate::mesh_builder::{MeshBuilder, Vertex};
 
 pub mod camera;
 pub mod light;

@@ -3,7 +3,7 @@ use egui::Context;
 use line_renderer::LineRenderer;
 use winit::window::Window;
 
-use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
+use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
 
 use self::{gpu_resources::{Resources, MeshHandle}, instances::{InstanceListResource, InstanceHandle, InstanceData}};
 

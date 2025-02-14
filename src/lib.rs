@@ -2,7 +2,7 @@
 
 pub mod window;
 pub mod renderer;
-pub mod mesh;
+pub mod mesh_builder;
 pub mod scene;
 
 pub mod color_normal_vertex;
@@ -19,7 +19,7 @@ pub mod handle;
 
 
 pub use renderer::{instances::InstanceHandle, gpu_resources::MeshHandle, Renderer};
-pub use mesh::{MeshBuilder, Vertex};
+pub use mesh_builder::{MeshBuilder, Vertex};
 pub use scene::{Transform, camera::Camera};
 pub use scene::light::{AmbientLight, DirectionalLight};
 pub use color_normal_vertex::ColorNormalVertex;

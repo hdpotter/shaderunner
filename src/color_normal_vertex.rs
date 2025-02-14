@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::mesh::Vertex;
+use crate::mesh_builder::Vertex;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
