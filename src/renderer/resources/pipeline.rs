@@ -1,6 +1,12 @@
-// pub struct Pipeline {
+pub struct Pipeline {
+
+}
+
+
+
+pub struct PipelineResource {
 //     pipeline: wgpu::RenderPipeline,
-// }
+}
 
 // impl Pipeline {
 //     pub fn new() -> Self {

@@ -15,7 +15,6 @@ pub mod line_renderer;
 pub mod instances;
 pub mod resizable_buffer;
 pub mod texture;
-pub mod pipeline;
 
 
 pub struct Renderer {

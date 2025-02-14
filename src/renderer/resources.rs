@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
 use generational_arena::Arena;
+use mesh::Mesh;
+use pipeline::Pipeline;
 
 use crate::handle::Handle;
 
 
-pub struct Pipeline {
+pub mod pipeline;
+pub mod mesh;
+pub mod instance_list;
 
-}
 
-pub struct Mesh {
 
-}
 
 pub struct InstanceList {
     pipeline: Handle<Pipeline>,
