@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use cgmath::{Vector3, Quaternion, Zero, Rotation3};
-use crate::mesh::{Mesh, Vertex};
+use crate::mesh::{MeshBuilder, Vertex};
 
 pub mod camera;
 pub mod light;
@@ -96,7 +96,7 @@ impl<T: Vertex> Model<T> {
     }
 
 
-    pub fn new(transform: Transform, mesh: Mesh<T>, device: &wgpu::Device) -> Model<T> {
+    pub fn new(transform: Transform, mesh: MeshBuilder<T>, device: &wgpu::Device) -> Model<T> {
         let vertex_buffer = mesh.export_vertex_buffer(device);
         let index_buffer = mesh.export_index_buffer(device);
         let index_count = mesh.index_count();

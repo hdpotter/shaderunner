@@ -29,12 +29,12 @@ impl<T: Vertex> VertexReference<T> {
     }
 }
 
-pub struct Mesh<T: Vertex> {
+pub struct MeshBuilder<T: Vertex> {
     vertices: Vec<T>,
     indices: Vec<u32>,
 }
 
-impl<T: Vertex> Mesh<T> {
+impl<T: Vertex> MeshBuilder<T> {
     pub fn vertices(&self) -> &Vec<T> {
         &self.vertices
     }

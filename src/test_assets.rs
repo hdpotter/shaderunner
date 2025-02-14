@@ -1,6 +1,6 @@
 use cgmath::{Vector3, InnerSpace};
 
-use crate::{mesh::Mesh, color_normal_vertex::ColorNormalVertex};
+use crate::{mesh::MeshBuilder, color_normal_vertex::ColorNormalVertex};
 
 // pub fn test_scene(renderer: &Renderer) -> Scene {
 //     let mut camera = Camera::new(
@@ -37,8 +37,8 @@ use crate::{mesh::Mesh, color_normal_vertex::ColorNormalVertex};
 
 // todo: put these in echoes_procgen crate
 
-pub fn gradient_quad_mesh() -> Mesh<ColorNormalVertex> {
-    let mut mesh = Mesh::new();
+pub fn gradient_quad_mesh() -> MeshBuilder<ColorNormalVertex> {
+    let mut mesh = MeshBuilder::new();
 
     let lower_left = ColorNormalVertex::new(
         Vector3::new(-1.0, 0.0, -1.0),
@@ -66,8 +66,8 @@ pub fn gradient_quad_mesh() -> Mesh<ColorNormalVertex> {
     mesh
 }
 
-pub fn cube_mesh() -> Mesh<ColorNormalVertex> {
-    let mut mesh = Mesh::new();
+pub fn cube_mesh() -> MeshBuilder<ColorNormalVertex> {
+    let mut mesh = MeshBuilder::new();
 
     let zzz = Vector3::<f32>::new(0.0, 0.0, 0.0);
     let zzo = Vector3::<f32>::new(0.0, 0.0, 1.0);
@@ -145,7 +145,7 @@ pub fn sphere_vertex(position: Vector3<f32>, radius: f32, color: Vector3<f32>) -
     )
 }
 
-pub fn add_sphere_face(mesh: &mut Mesh<ColorNormalVertex>, normal: Vector3<f32>, dx: Vector3<f32>, dy: Vector3<f32>, radius: f32, divisions: u32, color: Vector3<f32>) {
+pub fn add_sphere_face(mesh: &mut MeshBuilder<ColorNormalVertex>, normal: Vector3<f32>, dx: Vector3<f32>, dy: Vector3<f32>, radius: f32, divisions: u32, color: Vector3<f32>) {
     let corner = (normal - dx - dy) / 2.0;
 
     for i in 0..divisions - 1 {
@@ -165,8 +165,8 @@ pub fn add_sphere_face(mesh: &mut Mesh<ColorNormalVertex>, normal: Vector3<f32>,
     }
 }
 
-pub fn simple_sphere_mesh(radius: f32, divisions: u32, color: Vector3<f32>) -> Mesh<ColorNormalVertex> {
-    let mut mesh = Mesh::<ColorNormalVertex>::new();
+pub fn simple_sphere_mesh(radius: f32, divisions: u32, color: Vector3<f32>) -> MeshBuilder<ColorNormalVertex> {
+    let mut mesh = MeshBuilder::<ColorNormalVertex>::new();
 
     add_sphere_face(
         &mut mesh,
