@@ -10,6 +10,7 @@ use self::{gpu_resources::{Resources, MeshHandle}, instances::{InstanceListResou
 pub mod create_pipeline;
 
 pub mod gpu_resources;
+pub mod resources;
 pub mod line_renderer;
 pub mod instances;
 pub mod resizable_buffer;
