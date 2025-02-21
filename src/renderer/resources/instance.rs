@@ -1,7 +1,6 @@
-use generational_arena::{Index, Arena};
-use crate::scene::Transform;
-use crate::renderer::gpu_resources::MeshHandle;
-use super::resizable_buffer::ResizableBuffer;
+use crate::{handle::Handle, scene::Transform};
+
+use super::instance_list::InstanceList;
 
 
 pub struct Instance {
@@ -102,111 +101,24 @@ impl InstanceData {
     }
 }
 
-pub struct InstanceListResource {
-    mesh: MeshHandle,
-    instances: Arena<Instance>,
-    instance_data: Vec<InstanceData>,
-    instance_buffer: ResizableBuffer,
+pub struct InstanceRef {
+    list: Handle<InstanceList>,
+    instance: Handle<Instance>,
 }
 
-impl InstanceListResource {
-    pub fn mesh(&self) -> MeshHandle {
-        self.mesh
+impl InstanceRef {
+    pub fn list(&self) -> Handle<InstanceList> {
+        self.list
     }
 
-    pub fn instance_buffer(&self) -> &wgpu::Buffer {
-        &self.instance_buffer.buffer()
+    pub fn instance(&self) -> Handle<Instance> {
+        self.instance
     }
 
-    pub fn instance_count(&self) -> u32 {
-        self.instances.len() as u32
-    }
-
-    pub fn buffered_instance_count(&self) -> u32 {
-        self.instance_data.len() as u32
-    }
-
-    pub fn new(mesh: MeshHandle, device: &wgpu::Device) -> InstanceListResource {
-        let instances = Arena::new();
-        let instance_data = Vec::new();
-        // let instance_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: Some("instance buffer"),
-        //         contents: bytemuck::cast_slice(&instance_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     }
-        // );
-
-        let instance_buffer = ResizableBuffer::new(
-            100,
-            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            device,
-        );
-
-        InstanceListResource {
-            mesh,
-            instances,
-            instance_data,
-            instance_buffer,
-        }
-    }
-
-    pub fn add_instance(&mut self, transform: Transform) -> InstanceHandle {
-        let instance = Instance::new(transform);
-        let index = self.instances.insert(instance);
-        InstanceHandle::new(self.mesh(), index)
-    }
-
-    pub fn update_instance(&mut self, instance: InstanceHandle, transform: Transform) {
-        self.instances.get_mut(instance.index()).unwrap().set_transform(transform);
-    }
-
-    pub fn set_instance_active(&mut self, instance: InstanceHandle, active: bool) {
-        self.instances.get_mut(instance.index()).unwrap().set_active(active);
-    }
-
-    pub fn remove_instance(&mut self, instance: InstanceHandle) {
-        self.instances.remove(instance.index());
-    }
-
-    pub fn build_instance_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
-        // copy all instances into buffer
-        self.instance_data.clear();
-        for (_, instance) in &self.instances {
-            if instance.active() {
-                // todo: make separate list of active instances
-                self.instance_data.push(instance.to_data());
-            }
-        }
-
-        // upload buffer to gpu
-        self.instance_buffer.update(
-            device,
-            &queue,
-            bytemuck::cast_slice(&self.instance_data),
-        );
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct InstanceHandle {
-    mesh: MeshHandle,
-    index: Index,
-}
-
-impl InstanceHandle {
-    pub fn mesh(&self) -> MeshHandle {
-        self.mesh
-    }
-
-    pub fn index(&self) -> Index {
-        self.index
-    }
-
-    pub fn new(mesh: MeshHandle, index: Index) -> Self {
-        InstanceHandle {
-            mesh,
-            index,
+    pub fn new(list: Handle<InstanceList>, instance: Handle<Instance>) -> Self {
+        Self {
+            list,
+            instance,
         }
     }
 }

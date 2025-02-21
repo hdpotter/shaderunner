@@ -1,18 +1,17 @@
 use cgmath::Vector3;
 use egui::Context;
 use line_renderer::LineRenderer;
+use resources::{instance::{InstanceData, InstanceRef}, instance_list::InstanceList, mesh::Mesh, pipeline::Pipeline};
 use winit::window::Window;
 
-use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
+use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, handle::Handle, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
 
-use self::{gpu_resources::{Resources, MeshHandle}, instances::{InstanceListResource, InstanceHandle, InstanceData}};
+use self::resources::Resources;
 
 pub mod create_pipeline;
 
-pub mod gpu_resources;
 pub mod resources;
 pub mod line_renderer;
-pub mod instances;
 pub mod resizable_buffer;
 pub mod texture;
 
@@ -92,7 +91,8 @@ impl Renderer {
         };
         // surface.configure(&device, &surface_config);
 
-        let resources = Resources::new(&device, &surface_config);
+        // let resources = Resources::new(&device, &surface_config);
+        let resources = Resources::new(&surface_config, &device);
 
         let depth_format = Some(wgpu::TextureFormat::Depth32Float);
         
@@ -199,7 +199,7 @@ impl Renderer {
 
         // update instance buffers
         for instance_list in self.resources.iterate_instance_lists_mut() {
-            instance_list.build_instance_buffer(&self.device, &self.queue);
+            instance_list.build_and_upload_instance_buffer(&self.device, &self.queue);
         }
         
         let output = match self.surface.get_current_texture() {
@@ -284,42 +284,50 @@ impl Renderer {
     fn draw_instance_list(
         &self,
         render_pass: &mut wgpu::RenderPass,
-        instance_list: &InstanceListResource,
+        instance_list: &InstanceList,
         camera_bind_group: &wgpu::BindGroup,
     ) {
-        if let Some(mesh) = self.resources.get_mesh(instance_list.mesh()) {
-            render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
-            render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-            render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.set_bind_group(0, camera_bind_group, &[]);
-            render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
-        }
+        let mesh = self.resources.mesh(instance_list.mesh());
+
+        render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
+        render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+        render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
     }
 
     // ================================================================
     // interface for resources
     // ================================================================
-    pub fn add_mesh(&mut self, mesh: &MeshBuilder<ColorNormalVertex>) -> MeshHandle {
+    pub fn add_mesh(&mut self, mesh: &MeshBuilder<ColorNormalVertex>) -> Handle<Mesh> {
         self.resources.add_mesh(mesh, &self.device)
     }
 
-    pub fn remove_mesh(&mut self, mesh: MeshHandle) {
+    pub fn add_pipeline(&mut self) -> Handle<Pipeline> {
+        self.resources.add_pipeline()
+    }
+
+    pub fn add_instance_list(&mut self, pipeline: Handle<Pipeline>, mesh: Handle<Mesh>) -> Handle<InstanceList> {
+        self.resources.add_instance_list(pipeline, mesh, &self.device)
+    }
+
+    pub fn remove_mesh(&mut self, mesh: Handle<Mesh>) {
         self.resources.remove_mesh(mesh);
     }
 
-    pub fn add_instance(&mut self, mesh: MeshHandle, transform: Transform) -> InstanceHandle {
-        self.resources.add_instance(mesh, transform)
+    pub fn add_instance(&mut self, list: Handle<InstanceList>, transform: Transform) -> InstanceRef {
+        self.resources.add_instance(list, transform)
     }
 
-    pub fn update_instance(&mut self, instance: InstanceHandle, transform: Transform) {
+    pub fn update_instance(&mut self, instance: InstanceRef, transform: Transform) {
         self.resources.update_instance(instance, transform);
     }
 
-    pub fn set_instance_active(&mut self, instance: InstanceHandle, active: bool) {
+    pub fn set_instance_active(&mut self, instance: InstanceRef, active: bool) {
         self.resources.set_instance_active(instance, active);
     }
 
-    pub fn remove_instance(&mut self, instance: InstanceHandle) {
+    pub fn remove_instance(&mut self, instance: InstanceRef) {
         self.resources.remove_instance(instance);
     }
 

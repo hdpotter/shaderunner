@@ -6,22 +6,20 @@ use crate::{MeshBuilder, Vertex};
 pub struct Mesh {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+    index_count: u32,
 }
 
 impl Mesh {
+    pub fn index_count(&self) -> u32 {
+        self.index_count
+    }
+
     pub fn vertex_buffer(&self) -> &wgpu::Buffer {
         &self.vertex_buffer
     }
 
     pub fn index_buffer(&self) -> &wgpu::Buffer {
         &self.index_buffer
-    }
-
-    pub fn new(vertex_buffer: wgpu::Buffer, index_buffer: wgpu::Buffer) -> Self {
-        Mesh {
-            vertex_buffer,
-            index_buffer,
-        }
     }
 
     pub fn new_from_mesh_builder<T: Vertex>(mesh_builder: &MeshBuilder<T>, device: &wgpu::Device) -> Self {
@@ -39,10 +37,12 @@ impl Mesh {
                 usage: wgpu::BufferUsages::INDEX,
             }
         );
+        let index_count = mesh_builder.indices().len() as u32;
 
-        Self::new(
+        Self {
             vertex_buffer,
             index_buffer,
-        )
+            index_count,
+        }
     }
 }

@@ -1,40 +1,25 @@
 use std::collections::HashMap;
 
+use arena_iterator::{ArenaIterator, ArenaIteratorMut};
 use generational_arena::Arena;
+use instance::InstanceRef;
+use instance_list::InstanceList;
 use mesh::Mesh;
 use pipeline::Pipeline;
+use uniforms::{CameraResource, LightResource};
 
-use crate::{handle::Handle, MeshBuilder, Vertex};
+use crate::{handle::Handle, scene::camera::create_camera_bind_group_and_layout, AmbientLight, Camera, DirectionalLight, MeshBuilder, Transform, Vertex};
+
+use super::texture::create_depth_texture;
 
 
 pub mod pipeline;
 pub mod mesh;
 pub mod instance_list;
+pub mod instance;
+pub mod uniforms;
+pub mod arena_iterator;
 
-
-
-
-pub struct InstanceList {
-    pipeline: Handle<Pipeline>,
-    mesh: Handle<Mesh>,
-}
-
-impl InstanceList {
-    pub fn pipeline(&self) -> Handle<Pipeline> {
-        self.pipeline
-    }
-
-    pub fn mesh(&self) -> Handle<Mesh> {
-        self.mesh
-    }
-
-    pub fn new(pipeline: Handle<Pipeline>, mesh: Handle<Mesh>) -> Self {
-        Self {
-            pipeline,
-            mesh,
-        }
-    }
-}
 
 // Where should we put the dependents lists for meshes and pipelines?  The structure is simpler to
 // understand if we do instance list -> mesh/pipeline links in instance list and back links as hashtables.
@@ -48,10 +33,40 @@ pub struct Resources {
 
     pipeline_dependents: HashMap<Handle<Pipeline>, Arena<Handle<InstanceList>>>,
     mesh_dependents: HashMap<Handle<Mesh>, Arena<Handle<InstanceList>>>,
+
+    // we'll handle these in a much cleaner way after we finish the pipeline rewrite
+    camera: CameraResource,
+    lights: LightResource,
+
+    camera_bind_group_layout: wgpu::BindGroupLayout,
+    camera_bind_group: wgpu::BindGroup,
+
+    depth_texture: wgpu::Texture,
+    depth_texture_view: wgpu::TextureView,
 }
 
 impl Resources {
-    pub fn new() -> Self {
+    pub fn mesh(&self, mesh: Handle<Mesh>) -> &Mesh {
+        &self.meshes[mesh]
+    }
+
+    pub fn camera_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.camera_bind_group_layout
+    }
+
+    pub fn camera_bind_group(&self) -> &wgpu::BindGroup {
+        &self.camera_bind_group
+    }
+
+    pub fn depth_texture(&self) -> &wgpu::Texture {
+        &self.depth_texture
+    }
+
+    pub fn depth_texture_view(&self) -> &wgpu::TextureView {
+        &self.depth_texture_view
+    }
+
+    pub fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
         let pipelines = Arena::new();
         let meshes = Arena::new();
         let instance_lists = Arena::new();
@@ -59,12 +74,32 @@ impl Resources {
         let pipeline_dependents = HashMap::new();
         let mesh_dependents = HashMap::new();
 
+        let camera = CameraResource::new(device);
+        let lights = LightResource::new(device);
+
+        let (
+            camera_bind_group_layout,
+            camera_bind_group
+        ) = create_camera_bind_group_and_layout(&camera.camera_buffer(), &lights.light_buffer(), device);
+
+        let (
+            depth_texture,
+            depth_texture_view,
+        ) = create_depth_texture(device, config);
+
+
         Self {
             pipelines,
             meshes,
             instance_lists,
             pipeline_dependents,
             mesh_dependents,
+            camera,
+            lights,
+            camera_bind_group_layout,
+            camera_bind_group,
+            depth_texture,
+            depth_texture_view,
         }
     }
 
@@ -104,9 +139,10 @@ impl Resources {
         &mut self,
         pipeline: Handle<Pipeline>,
         mesh: Handle<Mesh>,
+        device: &wgpu::Device,
     ) -> Handle<InstanceList> {
         // add instance list
-        let instance_list = InstanceList::new(pipeline, mesh);
+        let instance_list = InstanceList::new(mesh, pipeline, device);
         let handle = Handle::insert(&mut self.instance_lists, instance_list);
 
         // add as dependent
@@ -162,4 +198,46 @@ impl Resources {
         self.pipelines.remove(mesh.index());
     }
 
+    pub fn add_instance(&mut self, list: Handle<InstanceList>, transform: Transform) -> InstanceRef {
+        let instance = self.instance_lists[list].add_instance(transform);
+        InstanceRef::new(list, instance)
+    }
+
+    pub fn update_instance(&mut self, instance: InstanceRef, transform: Transform) {
+        self.instance_lists[instance.list()].update_instance(instance.instance(), transform);
+    }
+
+    pub fn set_instance_active(&mut self, instance: InstanceRef, active: bool) {
+        self.instance_lists[instance.list()].set_instance_active(instance.instance(), active);
+    }
+
+    pub fn remove_instance(&mut self, instance: InstanceRef) {
+        self.instance_lists[instance.list()].remove_instance(instance.instance());
+    }
+
+    pub fn update_camera(&mut self, camera: &Camera, queue: &wgpu::Queue) {
+        self.camera.update(camera, queue);
+    }
+
+    pub fn update_light(&mut self, directional_light: &DirectionalLight, ambient_light: &AmbientLight, queue: &wgpu::Queue) {
+        self.lights.update(directional_light, ambient_light, queue);
+    }
+
+
+
+
+
+    pub fn resize_depth_texture(&mut self, device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) {
+        (self.depth_texture, self.depth_texture_view) = create_depth_texture(device, config);
+    }
+
+    pub fn iterate_instance_lists(&self) -> ArenaIterator<InstanceList> {
+        ArenaIterator::iterate(&self.instance_lists)
+    }
+
+    pub fn iterate_instance_lists_mut(&mut self) -> ArenaIteratorMut<InstanceList> {
+        ArenaIteratorMut::iterate(&mut self.instance_lists)
+    }
 }
+
+

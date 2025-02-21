@@ -18,7 +18,7 @@ pub mod handle;
 
 
 
-pub use renderer::{instances::InstanceHandle, gpu_resources::MeshHandle, Renderer};
+pub use renderer::Renderer;
 pub use mesh_builder::{MeshBuilder, Vertex};
 pub use scene::{Transform, camera::Camera};
 pub use scene::light::{AmbientLight, DirectionalLight};

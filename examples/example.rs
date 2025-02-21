@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use cgmath::Vector3;
-use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game, InstanceHandle, MeshBuilder, MeshHandle};
+use shaderunner::{game_program::GameProgram, renderer::Renderer, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game};
 use winit::{dpi::PhysicalPosition, event::WindowEvent, window::Window};
 
 
@@ -11,8 +11,8 @@ pub struct ExampleGame {
     frames: u32,
     cursor_position: PhysicalPosition<f64>,
 
-    mesh_to_remove: Option<MeshHandle>,
-    instance_to_remove: Option<InstanceHandle>,
+    // mesh_to_remove: Option<MeshHandle>,
+    // instance_to_remove: Option<InstanceHandle>,
 }
 
 impl ExampleGame {
@@ -22,21 +22,24 @@ impl Game for ExampleGame {
     async fn new(window: Window) -> ExampleGame {
         let mut renderer = Renderer::new(window).await;
     
+        let pipeline = renderer.add_pipeline();
+
         let cube_mesh = shaderunner::test_assets::cube_mesh();
         let cube_mesh = renderer.add_mesh(&cube_mesh);
+        let cube_mesh = renderer.add_instance_list(pipeline, cube_mesh);
         let _instance0 = renderer.add_instance(cube_mesh, Transform::from_translation(Vector3::new(-0.5, -0.5, -0.5)));
     
-        let sphere_mesh = shaderunner::test_assets::simple_sphere_mesh(1.0, 16, Vector3::new(1.0, 1.0, 1.0));
-        let sphere_mesh = renderer.add_mesh(&sphere_mesh);
-        let _instance1 = renderer.add_instance(sphere_mesh, Transform::from_translation(Vector3::new(0.5, 0.5, 0.5)));
+        // let sphere_mesh = shaderunner::test_assets::simple_sphere_mesh(1.0, 16, Vector3::new(1.0, 1.0, 1.0));
+        // let sphere_mesh = renderer.add_mesh(&sphere_mesh);
+        // let _instance1 = renderer.add_instance(sphere_mesh, Transform::from_translation(Vector3::new(0.5, 0.5, 0.5)));
     
-        let empty_mesh = MeshBuilder::new();
-        let empty_mesh = renderer.add_mesh(&empty_mesh);
-        let _empty_instance = renderer.add_instance(empty_mesh, Transform::identity());
+        // let empty_mesh = MeshBuilder::new();
+        // let empty_mesh = renderer.add_mesh(&empty_mesh);
+        // let _empty_instance = renderer.add_instance(empty_mesh, Transform::identity());
 
-        let mesh_to_remove = shaderunner::test_assets::simple_sphere_mesh(1.02, 16, Vector3::new(0.0, 0.0, 1.0));
-        let mesh_to_remove = Some(renderer.add_mesh(&mesh_to_remove));
-        let instance_to_remove = Some(renderer.add_instance(mesh_to_remove.unwrap(), Transform::from_translation(Vector3::new(0.5, 0.5, 0.5))));
+        // let mesh_to_remove = shaderunner::test_assets::simple_sphere_mesh(1.02, 16, Vector3::new(0.0, 0.0, 1.0));
+        // let mesh_to_remove = Some(renderer.add_mesh(&mesh_to_remove));
+        // let instance_to_remove = Some(renderer.add_instance(mesh_to_remove.unwrap(), Transform::from_translation(Vector3::new(0.5, 0.5, 0.5))));
 
         // let quad_mesh = echoes_graphics::test_assets::gradient_quad_mesh();
         // let quad_mesh = renderer.add_mesh(&quad_mesh);
@@ -72,8 +75,8 @@ impl Game for ExampleGame {
             frames,
             cursor_position,
 
-            mesh_to_remove,
-            instance_to_remove,
+            // mesh_to_remove,
+            // instance_to_remove,
         }
     
     }
@@ -93,19 +96,19 @@ impl Game for ExampleGame {
     }
 
     fn update(&mut self) {
-        if self.frames >= 60 {
-            if let Some(instance) = self.instance_to_remove {
-                self.renderer.remove_instance(instance);
-                self.instance_to_remove = None;
-            }
-        }
+        // if self.frames >= 60 {
+        //     if let Some(instance) = self.instance_to_remove {
+        //         self.renderer.remove_instance(instance);
+        //         self.instance_to_remove = None;
+        //     }
+        // }
 
-        if self.frames >= 120 {
-            if let Some(mesh) = self.mesh_to_remove {
-                self.renderer.remove_mesh(mesh);
-                self.mesh_to_remove = None;
-            }
-        }
+        // if self.frames >= 120 {
+        //     if let Some(mesh) = self.mesh_to_remove {
+        //         self.renderer.remove_mesh(mesh);
+        //         self.mesh_to_remove = None;
+        //     }
+        // }
     }
 
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
