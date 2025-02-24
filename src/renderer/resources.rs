@@ -10,7 +10,7 @@ use uniforms::{CameraResource, LightResource};
 
 use crate::{handle::Handle, scene::camera::create_camera_bind_group_and_layout, AmbientLight, Camera, DirectionalLight, MeshBuilder, Transform, Vertex};
 
-use super::texture::create_depth_texture;
+use super::{create_pipeline::create_render_pipeline, texture::create_depth_texture};
 
 
 pub mod pipeline;
@@ -40,6 +40,8 @@ pub struct Resources {
 
     camera_bind_group_layout: wgpu::BindGroupLayout,
     camera_bind_group: wgpu::BindGroup,
+    
+    pipeline_layout: wgpu::PipelineLayout,
 
     depth_texture: wgpu::Texture,
     depth_texture_view: wgpu::TextureView,
@@ -77,10 +79,19 @@ impl Resources {
         let camera = CameraResource::new(device);
         let lights = LightResource::new(device);
 
+        
         let (
             camera_bind_group_layout,
             camera_bind_group
         ) = create_camera_bind_group_and_layout(&camera.camera_buffer(), &lights.light_buffer(), device);
+        
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("pipeline layout"),
+            bind_group_layouts: &[
+                &camera_bind_group_layout,
+            ],
+            push_constant_ranges: &[],
+        });
 
         let (
             depth_texture,
@@ -98,6 +109,7 @@ impl Resources {
             lights,
             camera_bind_group_layout,
             camera_bind_group,
+            pipeline_layout,
             depth_texture,
             depth_texture_view,
         }
@@ -105,9 +117,26 @@ impl Resources {
 
     pub fn add_pipeline(
         &mut self,
+        color_format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+        vertex_layouts: &[wgpu::VertexBufferLayout<'_>],
+        shader: &wgpu::ShaderModule,
+        primitive: wgpu::PrimitiveState,
+        device: &wgpu::Device,
     ) -> Handle<Pipeline> {
-        // create and add pipeline
-        let pipeline = Pipeline { };
+        // create pipeline
+        let pipeline = create_render_pipeline(
+            device,
+            &self.pipeline_layout,
+            color_format,
+            Some(depth_format),
+            vertex_layouts,
+            shader,
+            primitive
+        );
+        let pipeline = Pipeline::new(pipeline);
+
+        // add to arena
         let handle = Handle::insert(&mut self.pipelines, pipeline);
 
         // add dependent list

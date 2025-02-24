@@ -21,8 +21,27 @@ impl ExampleGame {
 impl Game for ExampleGame {
     async fn new(window: Window) -> ExampleGame {
         let mut renderer = Renderer::new(window).await;
-    
-        let pipeline = renderer.add_pipeline();
+
+        let shader = wgpu::ShaderModuleDescriptor {
+            label: Some("example_shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../src/shader.wgsl").into()),
+        };
+        le
+
+        let primitive = wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        };
+
+        let pipeline = renderer.add_pipeline(
+            &shader,
+            primitive,
+        );
 
         let cube_mesh = shaderunner::test_assets::cube_mesh();
         let cube_mesh = renderer.add_mesh(&cube_mesh);

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use cgmath::Vector3;
 use egui::Context;
 use line_renderer::LineRenderer;
@@ -19,8 +21,11 @@ pub mod texture;
 pub struct Renderer {
     window: Window,
     device: wgpu::Device,
+
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
+    depth_format: wgpu::TextureFormat,
+
     queue: wgpu::Queue,
     tri_pipeline: wgpu::RenderPipeline,
     line_pipeline: wgpu::RenderPipeline,
@@ -94,7 +99,7 @@ impl Renderer {
         // let resources = Resources::new(&device, &surface_config);
         let resources = Resources::new(&surface_config, &device);
 
-        let depth_format = Some(wgpu::TextureFormat::Depth32Float);
+        let depth_format = wgpu::TextureFormat::Depth32Float;
         
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("render pipeline layout"),
@@ -125,7 +130,7 @@ impl Renderer {
                 &device,
                 &pipeline_layout,
                 surface_config.format,
-                depth_format,
+                Some(depth_format),
                 &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
                 &shader,
                 tri_primitive,
@@ -149,7 +154,7 @@ impl Renderer {
                 &device,
                 &pipeline_layout,
                 surface_config.format,
-                depth_format,
+                Some(depth_format),
                 &[ColorVertex::vertex_buffer_layout()],
                 &shader,
                 line_primitive,
@@ -162,15 +167,18 @@ impl Renderer {
             &window,
             &device,
             &surface_config,
-            depth_format,
+            Some(depth_format),
         );
 
 
         Renderer {
             window,
             device,
+
             surface,
             surface_config,
+            depth_format,
+
             queue,
             tri_pipeline,
             line_pipeline,
@@ -303,8 +311,25 @@ impl Renderer {
         self.resources.add_mesh(mesh, &self.device)
     }
 
-    pub fn add_pipeline(&mut self) -> Handle<Pipeline> {
-        self.resources.add_pipeline()
+    pub fn add_pipeline(
+        &mut self,
+        shader: wgpu::ShaderSource,
+        primitive: wgpu::PrimitiveState,
+    ) -> Handle<Pipeline> {
+        let shader = wgpu::ShaderModuleDescriptor {
+            label: None,
+            source: shader,
+        };
+        let shader = self.device.create_shader_module(shader); //todo: add separate shader so we can separate pipeline creation from shader creation
+
+        self.resources.add_pipeline(
+            self.surface_config.format,
+            self.depth_format,
+            &[ColorNormalVertex::vertex_buffer_layout()],
+            &shader,
+            primitive,
+            &self.device,
+        )
     }
 
     pub fn add_instance_list(&mut self, pipeline: Handle<Pipeline>, mesh: Handle<Mesh>) -> Handle<InstanceList> {
