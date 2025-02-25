@@ -1,5 +1,10 @@
+use generational_arena::Arena;
+
+use super::instance_list::InstanceList;
+
 pub struct Pipeline {
-    pipeline: wgpu::RenderPipeline
+    pipeline: wgpu::RenderPipeline,
+    dependents: Arena<InstanceList>,
 }
 
 impl Pipeline {
@@ -8,7 +13,10 @@ impl Pipeline {
     }
 
     pub fn new(pipeline: wgpu::RenderPipeline) -> Self {
+        let dependents = Arena::new();
+        
         Self {
+            dependents,
             pipeline,
         }
     }

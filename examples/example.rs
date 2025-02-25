@@ -22,11 +22,7 @@ impl Game for ExampleGame {
     async fn new(window: Window) -> ExampleGame {
         let mut renderer = Renderer::new(window).await;
 
-        let shader = wgpu::ShaderModuleDescriptor {
-            label: Some("example_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../src/shader.wgsl").into()),
-        };
-        le
+        let shader = wgpu::ShaderSource::Wgsl(include_str!("../src/shader.wgsl").into());
 
         let primitive = wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -39,7 +35,7 @@ impl Game for ExampleGame {
         };
 
         let pipeline = renderer.add_pipeline(
-            &shader,
+            shader,
             primitive,
         );
 
@@ -184,7 +180,7 @@ pub async fn run() {
 }
 
 pub fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+    // std::env::set_var("RUST_BACKTRACE", "1");
 
     pollster::block_on(
         shaderunner::window::run_program::<GameProgram<ExampleGame>>()

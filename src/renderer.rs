@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use cgmath::Vector3;
 use egui::Context;
 use line_renderer::LineRenderer;
@@ -27,7 +25,7 @@ pub struct Renderer {
     depth_format: wgpu::TextureFormat,
 
     queue: wgpu::Queue,
-    tri_pipeline: wgpu::RenderPipeline,
+    // tri_pipeline: wgpu::RenderPipeline,
     line_pipeline: wgpu::RenderPipeline,
 
     line_renderer: LineRenderer,
@@ -109,33 +107,33 @@ impl Renderer {
             push_constant_ranges: &[],
         });
             
-        let tri_pipeline = {
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("tri_shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            };
-            let shader = device.create_shader_module(shader);
+        // let tri_pipeline = {
+        //     let shader = wgpu::ShaderModuleDescriptor {
+        //         label: Some("tri_shader"),
+        //         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        //     };
+        //     let shader = device.create_shader_module(shader);
 
-            let tri_primitive = wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            };
+        //     let tri_primitive = wgpu::PrimitiveState {
+        //         topology: wgpu::PrimitiveTopology::TriangleList,
+        //         strip_index_format: None,
+        //         front_face: wgpu::FrontFace::Ccw,
+        //         cull_mode: Some(wgpu::Face::Back),
+        //         polygon_mode: wgpu::PolygonMode::Fill,
+        //         unclipped_depth: false,
+        //         conservative: false,
+        //     };
 
-            create_pipeline::create_render_pipeline(
-                &device,
-                &pipeline_layout,
-                surface_config.format,
-                Some(depth_format),
-                &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
-                &shader,
-                tri_primitive,
-            )
-        };
+        //     create_pipeline::create_render_pipeline(
+        //         &device,
+        //         &pipeline_layout,
+        //         surface_config.format,
+        //         Some(depth_format),
+        //         &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
+        //         &shader,
+        //         tri_primitive,
+        //     )
+        // };
 
         let line_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
@@ -180,7 +178,7 @@ impl Renderer {
             depth_format,
 
             queue,
-            tri_pipeline,
+            // tri_pipeline,
             line_pipeline,
 
             line_renderer,
@@ -206,7 +204,7 @@ impl Renderer {
     pub fn render(&mut self) {
 
         // update instance buffers
-        for instance_list in self.resources.iterate_instance_lists_mut() {
+        for (_, instance_list) in self.resources.iterate_instance_lists_mut() {
             instance_list.build_and_upload_instance_buffer(&self.device, &self.queue);
         }
         
@@ -268,9 +266,18 @@ impl Renderer {
 
 
             // draw triangles
-            render_pass.set_pipeline(&self.tri_pipeline);
-            for instance_list in self.resources.iterate_instance_lists() {
-                self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
+            // render_pass.set_pipeline(&self.tri_pipeline);
+            // for instance_list in self.resources.iterate_instance_lists() {
+            //     self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
+            // }
+
+            for (pipeline_handle, pipeline) in self.resources.iterate_pipelines() {
+                render_pass.set_pipeline(pipeline.pipeline());
+                for (_, instance_list) in self.resources.iterate_pipeline_dependents(pipeline_handle) {
+                    let instance_list = &self.resources.instance_lists()[*instance_list];
+
+                    self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
+                }
             }
 
             // draw lines
@@ -325,7 +332,7 @@ impl Renderer {
         self.resources.add_pipeline(
             self.surface_config.format,
             self.depth_format,
-            &[ColorNormalVertex::vertex_buffer_layout()],
+            &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
             &shader,
             primitive,
             &self.device,

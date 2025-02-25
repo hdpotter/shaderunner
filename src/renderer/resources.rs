@@ -19,6 +19,7 @@ pub mod instance_list;
 pub mod instance;
 pub mod uniforms;
 pub mod arena_iterator;
+pub mod many_one;
 
 
 // Where should we put the dependents lists for meshes and pipelines?  The structure is simpler to
@@ -33,6 +34,7 @@ pub struct Resources {
 
     pipeline_dependents: HashMap<Handle<Pipeline>, Arena<Handle<InstanceList>>>,
     mesh_dependents: HashMap<Handle<Mesh>, Arena<Handle<InstanceList>>>,
+    dependent_handles_pipeline_mesh: HashMap<Handle<InstanceList>, (Handle<Handle<InstanceList>>, Handle<Handle<InstanceList>>)>, //todo: better way?
 
     // we'll handle these in a much cleaner way after we finish the pipeline rewrite
     camera: CameraResource,
@@ -68,6 +70,19 @@ impl Resources {
         &self.depth_texture_view
     }
 
+    // pub fn pipelines(&self) -> &Arena<Pipeline> {
+    //     &self.pipelines
+    // }
+
+    pub fn instance_lists(&self) -> &Arena<InstanceList> {
+        &self.instance_lists
+    }
+
+    // // todo: more elegant way of handling this, and in general iteration over things to render
+    // pub fn instance_list(&self, instance_list: Handle<InstanceList>) -> &InstanceList {
+    //     &self.instance_lists[instance_list]
+    // }
+
     pub fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
         let pipelines = Arena::new();
         let meshes = Arena::new();
@@ -75,6 +90,7 @@ impl Resources {
 
         let pipeline_dependents = HashMap::new();
         let mesh_dependents = HashMap::new();
+        let dependent_handles_pipeline_mesh = HashMap::new();
 
         let camera = CameraResource::new(device);
         let lights = LightResource::new(device);
@@ -105,6 +121,7 @@ impl Resources {
             instance_lists,
             pipeline_dependents,
             mesh_dependents,
+            dependent_handles_pipeline_mesh,
             camera,
             lights,
             camera_bind_group_layout,
@@ -175,8 +192,18 @@ impl Resources {
         let handle = Handle::insert(&mut self.instance_lists, instance_list);
 
         // add as dependent
-        self.pipeline_dependents.get_mut(&pipeline).unwrap().insert(handle);
-        self.mesh_dependents.get_mut(&mesh).unwrap().insert(handle);
+        let pipeline_handle = Handle::insert(
+            &mut self.pipeline_dependents.get_mut(&pipeline).unwrap(),
+            handle
+        );
+        let mesh_handle = Handle::insert(
+            &mut self.mesh_dependents.get_mut(&mesh).unwrap(),
+            handle
+        );
+        self.dependent_handles_pipeline_mesh.insert(
+            handle,
+            (pipeline_handle, mesh_handle)
+        );
 
         // return
         handle
@@ -192,8 +219,9 @@ impl Resources {
         let mesh = instance_list_struct.mesh();
 
         // remove as dependent
-        self.pipeline_dependents.get_mut(&pipeline).unwrap().remove(instance_list.index());
-        self.mesh_dependents.get_mut(&mesh).unwrap().remove(instance_list.index());
+        let (pipeline_handle, mesh_handle) = self.dependent_handles_pipeline_mesh.remove(&instance_list).unwrap();
+        self.pipeline_dependents.get_mut(&pipeline).unwrap().remove(pipeline_handle.index());
+        self.mesh_dependents.get_mut(&mesh).unwrap().remove(mesh_handle.index());
 
         // remove list
         self.instance_lists.remove(instance_list.index());
@@ -267,6 +295,16 @@ impl Resources {
     pub fn iterate_instance_lists_mut(&mut self) -> ArenaIteratorMut<InstanceList> {
         ArenaIteratorMut::iterate(&mut self.instance_lists)
     }
+
+    pub fn iterate_pipelines(&self) -> ArenaIterator<Pipeline> {
+        ArenaIterator::iterate(&self.pipelines)
+    }
+
+    pub fn iterate_pipeline_dependents(&self, pipeline: Handle<Pipeline>) -> ArenaIterator<Handle<InstanceList>> {
+        let dependents = &self.pipeline_dependents[&pipeline];
+        ArenaIterator::iterate(dependents)
+    }
+
 }
 
 
