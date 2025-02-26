@@ -6,11 +6,10 @@ use instance::InstanceRef;
 use instance_list::InstanceList;
 use mesh::Mesh;
 use pipeline::Pipeline;
-use uniforms::{CameraResource, LightResource};
 
-use crate::{handle::Handle, scene::camera::create_camera_bind_group_and_layout, AmbientLight, Camera, DirectionalLight, MeshBuilder, Transform, Vertex};
+use crate::{handle::Handle, MeshBuilder, Transform, Vertex};
 
-use super::{create_pipeline::create_render_pipeline, texture::create_depth_texture};
+use super::create_pipeline::create_render_pipeline;
 
 
 pub mod pipeline;
@@ -20,6 +19,7 @@ pub mod instance;
 pub mod uniforms;
 pub mod arena_iterator;
 pub mod many_one;
+pub mod misc;
 
 
 // Where should we put the dependents lists for meshes and pipelines?  The structure is simpler to
@@ -35,39 +35,11 @@ pub struct Resources {
     pipeline_dependents: HashMap<Handle<Pipeline>, Arena<Handle<InstanceList>>>,
     mesh_dependents: HashMap<Handle<Mesh>, Arena<Handle<InstanceList>>>,
     dependent_handles_pipeline_mesh: HashMap<Handle<InstanceList>, (Handle<Handle<InstanceList>>, Handle<Handle<InstanceList>>)>, //todo: better way?
-
-    // we'll handle these in a much cleaner way after we finish the pipeline rewrite
-    camera: CameraResource,
-    lights: LightResource,
-
-    camera_bind_group_layout: wgpu::BindGroupLayout,
-    camera_bind_group: wgpu::BindGroup,
-    
-    pipeline_layout: wgpu::PipelineLayout,
-
-    depth_texture: wgpu::Texture,
-    depth_texture_view: wgpu::TextureView,
 }
 
 impl Resources {
     pub fn mesh(&self, mesh: Handle<Mesh>) -> &Mesh {
         &self.meshes[mesh]
-    }
-
-    pub fn camera_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
-        &self.camera_bind_group_layout
-    }
-
-    pub fn camera_bind_group(&self) -> &wgpu::BindGroup {
-        &self.camera_bind_group
-    }
-
-    pub fn depth_texture(&self) -> &wgpu::Texture {
-        &self.depth_texture
-    }
-
-    pub fn depth_texture_view(&self) -> &wgpu::TextureView {
-        &self.depth_texture_view
     }
 
     // pub fn pipelines(&self) -> &Arena<Pipeline> {
@@ -83,7 +55,7 @@ impl Resources {
     //     &self.instance_lists[instance_list]
     // }
 
-    pub fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
+    pub fn new() -> Self {
         let pipelines = Arena::new();
         let meshes = Arena::new();
         let instance_lists = Arena::new();
@@ -92,29 +64,6 @@ impl Resources {
         let mesh_dependents = HashMap::new();
         let dependent_handles_pipeline_mesh = HashMap::new();
 
-        let camera = CameraResource::new(device);
-        let lights = LightResource::new(device);
-
-        
-        let (
-            camera_bind_group_layout,
-            camera_bind_group
-        ) = create_camera_bind_group_and_layout(&camera.camera_buffer(), &lights.light_buffer(), device);
-        
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("pipeline layout"),
-            bind_group_layouts: &[
-                &camera_bind_group_layout,
-            ],
-            push_constant_ranges: &[],
-        });
-
-        let (
-            depth_texture,
-            depth_texture_view,
-        ) = create_depth_texture(device, config);
-
-
         Self {
             pipelines,
             meshes,
@@ -122,13 +71,6 @@ impl Resources {
             pipeline_dependents,
             mesh_dependents,
             dependent_handles_pipeline_mesh,
-            camera,
-            lights,
-            camera_bind_group_layout,
-            camera_bind_group,
-            pipeline_layout,
-            depth_texture,
-            depth_texture_view,
         }
     }
 
@@ -137,6 +79,7 @@ impl Resources {
         color_format: wgpu::TextureFormat,
         depth_format: wgpu::TextureFormat,
         vertex_layouts: &[wgpu::VertexBufferLayout<'_>],
+        pipeline_layout: &wgpu::PipelineLayout,
         shader: &wgpu::ShaderModule,
         primitive: wgpu::PrimitiveState,
         device: &wgpu::Device,
@@ -144,7 +87,7 @@ impl Resources {
         // create pipeline
         let pipeline = create_render_pipeline(
             device,
-            &self.pipeline_layout,
+            pipeline_layout,
             color_format,
             Some(depth_format),
             vertex_layouts,
@@ -272,21 +215,6 @@ impl Resources {
         self.instance_lists[instance.list()].remove_instance(instance.instance());
     }
 
-    pub fn update_camera(&mut self, camera: &Camera, queue: &wgpu::Queue) {
-        self.camera.update(camera, queue);
-    }
-
-    pub fn update_light(&mut self, directional_light: &DirectionalLight, ambient_light: &AmbientLight, queue: &wgpu::Queue) {
-        self.lights.update(directional_light, ambient_light, queue);
-    }
-
-
-
-
-
-    pub fn resize_depth_texture(&mut self, device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) {
-        (self.depth_texture, self.depth_texture_view) = create_depth_texture(device, config);
-    }
 
     pub fn iterate_instance_lists(&self) -> ArenaIterator<InstanceList> {
         ArenaIterator::iterate(&self.instance_lists)

@@ -1,7 +1,7 @@
 use cgmath::Vector3;
 use egui::Context;
 use line_renderer::LineRenderer;
-use resources::{instance::{InstanceData, InstanceRef}, instance_list::InstanceList, mesh::Mesh, pipeline::Pipeline};
+use resources::{instance::{InstanceData, InstanceRef}, instance_list::InstanceList, mesh::Mesh, misc::Misc, pipeline::Pipeline};
 use winit::window::Window;
 
 use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, handle::Handle, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
@@ -25,7 +25,6 @@ pub struct Renderer {
     depth_format: wgpu::TextureFormat,
 
     queue: wgpu::Queue,
-    // tri_pipeline: wgpu::RenderPipeline,
     line_pipeline: wgpu::RenderPipeline,
 
     line_renderer: LineRenderer,
@@ -33,6 +32,7 @@ pub struct Renderer {
     ui_manager: UIManager,
 
     resources: Resources,
+    misc: Misc,
 }
 
 impl Renderer {
@@ -95,46 +95,11 @@ impl Renderer {
         // surface.configure(&device, &surface_config);
 
         // let resources = Resources::new(&device, &surface_config);
-        let resources = Resources::new(&surface_config, &device);
+        let resources = Resources::new();
+        let misc = Misc::new(&surface_config, &device);
 
         let depth_format = wgpu::TextureFormat::Depth32Float;
         
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("render pipeline layout"),
-            bind_group_layouts: &[
-                resources.camera_bind_group_layout(),
-            ],
-            push_constant_ranges: &[],
-        });
-            
-        // let tri_pipeline = {
-        //     let shader = wgpu::ShaderModuleDescriptor {
-        //         label: Some("tri_shader"),
-        //         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        //     };
-        //     let shader = device.create_shader_module(shader);
-
-        //     let tri_primitive = wgpu::PrimitiveState {
-        //         topology: wgpu::PrimitiveTopology::TriangleList,
-        //         strip_index_format: None,
-        //         front_face: wgpu::FrontFace::Ccw,
-        //         cull_mode: Some(wgpu::Face::Back),
-        //         polygon_mode: wgpu::PolygonMode::Fill,
-        //         unclipped_depth: false,
-        //         conservative: false,
-        //     };
-
-        //     create_pipeline::create_render_pipeline(
-        //         &device,
-        //         &pipeline_layout,
-        //         surface_config.format,
-        //         Some(depth_format),
-        //         &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
-        //         &shader,
-        //         tri_primitive,
-        //     )
-        // };
-
         let line_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("line_shader"),
@@ -150,7 +115,7 @@ impl Renderer {
 
             create_pipeline::create_render_pipeline(
                 &device,
-                &pipeline_layout,
+                misc.pipeline_layout(),
                 surface_config.format,
                 Some(depth_format),
                 &[ColorVertex::vertex_buffer_layout()],
@@ -178,13 +143,13 @@ impl Renderer {
             depth_format,
 
             queue,
-            // tri_pipeline,
             line_pipeline,
 
             line_renderer,
             ui_manager,
 
             resources,
+            misc,
         }
     }
 
@@ -193,7 +158,7 @@ impl Renderer {
             self.surface_config.width = new_size.width;
             self.surface_config.height = new_size.height;
             self.surface.configure(&self.device, &self.surface_config);
-            self.resources.resize_depth_texture(&self.device, &self.surface_config);
+            self.misc.resize_depth_texture(&self.device, &self.surface_config);
         }
     }
 
@@ -253,7 +218,7 @@ impl Renderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.resources.depth_texture_view(),
+                    view: &self.misc.depth_texture_view(),
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Store,
@@ -264,19 +229,12 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
-
-            // draw triangles
-            // render_pass.set_pipeline(&self.tri_pipeline);
-            // for instance_list in self.resources.iterate_instance_lists() {
-            //     self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
-            // }
-
             for (pipeline_handle, pipeline) in self.resources.iterate_pipelines() {
                 render_pass.set_pipeline(pipeline.pipeline());
                 for (_, instance_list) in self.resources.iterate_pipeline_dependents(pipeline_handle) {
                     let instance_list = &self.resources.instance_lists()[*instance_list];
 
-                    self.draw_instance_list(&mut render_pass, instance_list, self.resources.camera_bind_group());
+                    self.draw_instance_list(&mut render_pass, instance_list, self.misc.camera_bind_group());
                 }
             }
 
@@ -284,7 +242,7 @@ impl Renderer {
             render_pass.set_pipeline(&self.line_pipeline);
             self.line_renderer.render_and_clear(
                 &mut render_pass,
-                self.resources.camera_bind_group(),
+                self.misc.camera_bind_group(),
             );
             
 
@@ -333,6 +291,7 @@ impl Renderer {
             self.surface_config.format,
             self.depth_format,
             &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
+            self.misc.pipeline_layout(),
             &shader,
             primitive,
             &self.device,
@@ -364,11 +323,11 @@ impl Renderer {
     }
 
     pub fn update_camera(&mut self, camera: &Camera) {
-        self.resources.update_camera(camera, &self.queue);
+        self.misc.update_camera(camera, &self.queue);
     }
 
     pub fn update_light(&mut self, directional_light: &DirectionalLight, ambient_light: &AmbientLight) {
-        self.resources.update_light(directional_light, ambient_light, &self.queue);
+        self.misc.update_light(directional_light, ambient_light, &self.queue);
     }
 
     // ================================================================
