@@ -27,6 +27,7 @@ egui-wgpu = "0.30.0"
 egui = "0.30.0"
 rapier3d = "0.17.2"
 web-time = "^0.2"
+slotmap = "1.0.7"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

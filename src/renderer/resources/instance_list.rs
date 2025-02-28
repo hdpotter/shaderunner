@@ -1,22 +1,22 @@
-use generational_arena::Arena;
+use slotmap::{DefaultKey, HopSlotMap};
 
 use crate::{handle::Handle, renderer::resizable_buffer::ResizableBuffer, Transform};
 
-use super::{instance::{Instance, InstanceData}, mesh::Mesh, pipeline::Pipeline};
+use super::{instance::{Instance, InstanceData}, material::Material, mesh::Mesh};
 
 pub struct InstanceList {
     mesh: Handle<Mesh>,
-    pipeline: Handle<Pipeline>,
+    material: Handle<Material>,
 
-    instances: Arena<Instance>,
+    instances: HopSlotMap<DefaultKey, Instance>,
 
     instance_data: Vec<InstanceData>,
     instance_buffer: ResizableBuffer,
 }
 
 impl InstanceList {
-    pub fn pipeline(&self) -> Handle<Pipeline> {
-        self.pipeline
+    pub fn material(&self) -> Handle<Material> {
+        self.material
     }
 
     pub fn mesh(&self) -> Handle<Mesh> {
@@ -37,10 +37,10 @@ impl InstanceList {
 
     pub fn new(
         mesh: Handle<Mesh>,
-        pipeline: Handle<Pipeline>,
+        material: Handle<Material>,
         device: &wgpu::Device,
     ) -> Self {
-        let instances = Arena::new();
+        let instances = HopSlotMap::new();
         let instance_data = Vec::new();
 
         let instance_buffer = ResizableBuffer::new(
@@ -51,7 +51,7 @@ impl InstanceList {
 
         Self {
             mesh,
-            pipeline,
+            material,
             instances,
             instance_data,
             instance_buffer,
@@ -60,19 +60,19 @@ impl InstanceList {
 
     pub fn add_instance(&mut self, transform: Transform) -> Handle<Instance> {
         let instance = Instance::new(transform);
-        Handle::insert(&mut self.instances, instance)
+        Handle::insert_hop(&mut self.instances, instance)
     }
 
     pub fn update_instance(&mut self, instance: Handle<Instance>, transform: Transform) {
-        self.instances.get_mut(instance.index()).unwrap().set_transform(transform);
+        self.instances.get_mut(instance.key()).unwrap().set_transform(transform);
     }
 
     pub fn set_instance_active(&mut self, instance: Handle<Instance>, active: bool) {
-        self.instances.get_mut(instance.index()).unwrap().set_active(active);
+        self.instances.get_mut(instance.key()).unwrap().set_active(active);
     }
 
     pub fn remove_instance(&mut self, instance: Handle<Instance>) {
-        self.instances.remove(instance.index());
+        self.instances.remove(instance.key());
     }
 
     pub fn build_and_upload_instance_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {

@@ -1,6 +1,4 @@
-use crate::{handle::Handle, scene::Transform};
-
-use super::instance_list::InstanceList;
+use crate::scene::Transform;
 
 
 pub struct Instance {
@@ -101,24 +99,3 @@ impl InstanceData {
     }
 }
 
-pub struct InstanceRef {
-    list: Handle<InstanceList>,
-    instance: Handle<Instance>,
-}
-
-impl InstanceRef {
-    pub fn list(&self) -> Handle<InstanceList> {
-        self.list
-    }
-
-    pub fn instance(&self) -> Handle<Instance> {
-        self.instance
-    }
-
-    pub fn new(list: Handle<InstanceList>, instance: Handle<Instance>) -> Self {
-        Self {
-            list,
-            instance,
-        }
-    }
-}
