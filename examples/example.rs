@@ -2,14 +2,13 @@ use std::time::Duration;
 
 use cgmath::Vector3;
 use shaderunner::{game_program::GameProgram, handle::Handle, renderer::{resources::{mesh::Mesh, InstanceRef}, Renderer}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, Game, MeshBuilder};
-use winit::{dpi::PhysicalPosition, event::WindowEvent, window::Window};
+use winit::{event::WindowEvent, window::Window};
 
 
 pub struct ExampleGame {
     renderer: Renderer,
     camera: Camera,
     frames: u32,
-    cursor_position: PhysicalPosition<f64>,
 
     mesh_to_remove: Option<Handle<Mesh>>,
     instance_to_remove: Option<InstanceRef>,
@@ -81,13 +80,11 @@ impl Game for ExampleGame {
         renderer.update_camera(&camera);
         
         let frames = 0;
-        let cursor_position = PhysicalPosition::new(0_f64, 0_f64);
 
         ExampleGame {
             renderer,
             camera,
             frames,
-            cursor_position,
 
             mesh_to_remove,
             instance_to_remove,
@@ -102,10 +99,6 @@ impl Game for ExampleGame {
     }
 
     fn window_event(&mut self, event: &WindowEvent) -> bool {
-        if let WindowEvent::CursorMoved { position, .. } = event {
-            self.cursor_position = *position;
-        }
-        
         self.renderer.egui_event(event)
     }
 
@@ -128,14 +121,6 @@ impl Game for ExampleGame {
     fn render(&mut self, _since_render: Duration, _since_update: Duration) {
         // draw a green_line in immediate mode
         self.renderer.draw_line_green(Vector3::new(-10_f32, -10_f32, -10_f32), Vector3::new(10_f32, 10_f32, 10_f32));
-
-        // draw box around cursor position
-        let ray = self.camera.pixel_to_ray(self.renderer.window().inner_size(), self.cursor_position.cast());
-        let position = ray.source() + 10_f32 * ray.direction();
-        self.renderer.draw_line_green(position - Vector3::unit_x()/4_f32, position + Vector3::unit_x()/4_f32);
-        self.renderer.draw_line_green(position - Vector3::unit_y()/4_f32, position + Vector3::unit_y()/4_f32);
-        self.renderer.draw_line_green(position - Vector3::unit_z()/4_f32, position + Vector3::unit_z()/4_f32);
-
 
         // draw some UI in immediate mode
         self.renderer.run_ui(|context| {
@@ -160,18 +145,13 @@ use wasm_bindgen::prelude::*;
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run() {
     // std::env::set_var("RUST_BACKTRACE", "1");
-
     
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
-            // web_sys::console::log_2(&"hello, world!".into());
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
 
             log::info!("logging works!");
-
-        } else {
-            // env_logger::init();
         }
     }
 
