@@ -80,6 +80,8 @@ pub struct Resources {
 
     instance_list_coverage: HashMap<(Handle<Material>, Handle<Mesh>), InstanceListRef>,
 
+    instance_lists_to_purge: Vec<InstanceListRef>, //todo: could make another one for materials specifically to avoid double indirection
+
     // necessary to be able to remove an instance list from mesh dependents
     // would prefer not to store it here, but cannot store it in InstanceListRef because we need to be able
     //   to make an InstanceListRef from just material and instance handle and would prefer not to store it
@@ -119,6 +121,8 @@ impl Resources {
 
         let instance_list_coverage = HashMap::new();
 
+        let instance_lists_to_purge = Vec::new();
+
         let instance_list_mesh_backlinks = HashMap::new();
 
         Self {
@@ -127,6 +131,7 @@ impl Resources {
             meshes,
             instance_lists_by_mesh,
             instance_list_coverage,
+            instance_lists_to_purge,
             instance_list_mesh_backlinks,
         }
     }
@@ -207,7 +212,6 @@ impl Resources {
         instance_list
     }
 
-    #[allow(dead_code)]
     fn remove_instance_list(
         &mut self,
         instance_list: InstanceListRef
@@ -233,9 +237,11 @@ impl Resources {
         &mut self,
         material: Handle<Material>,
     ) {
+        self.purge_instance_lists_material(material);
+
         // verify no dependents and remove dependent list
         if self.instance_lists_by_material[material.key()].len() > 0 {
-            panic!("attempted to remove material with at least one dependent instance list");
+            panic!("attempted to remove material with at least one dependent instance");
         }
         self.instance_lists_by_material.remove(material.key());
 
@@ -243,10 +249,26 @@ impl Resources {
         self.materials.remove(material.key());
     }
 
+    /// Remove any empty instance lists depending on `material`.
+    fn purge_instance_lists_material(&mut self, material: Handle<Material>) {
+        self.instance_lists_to_purge.clear();
+        for (key, instance_list) in &self.instance_lists_by_material[material.key()] {
+            if instance_list.instance_count() == 0 {
+                let instance_list_ref = InstanceListRef::new(material, Handle::new(key));
+                self.instance_lists_to_purge.push(instance_list_ref);
+            }
+        }
+        for i in 0..self.instance_lists_to_purge.len() {
+            self.remove_instance_list(self.instance_lists_to_purge[i]);
+        }
+    }
+
     pub fn remove_mesh(
         &mut self,
         mesh: Handle<Mesh>
     ) {
+        self.purge_instance_lists_mesh(mesh);
+
         // verify no dependents and remove dependent list
         if self.instance_lists_by_mesh[mesh.key()].len() > 0 {
             panic!("attempted to remove mesh with at least one dependent instance list");
@@ -257,6 +279,18 @@ impl Resources {
         self.meshes.remove(mesh.key());
     }
 
+    /// Remove any instance lists depending on `mesh`.
+    fn purge_instance_lists_mesh(&mut self, mesh: Handle<Mesh>) {
+        self.instance_lists_to_purge.clear();
+        for &instance_list_ref in self.instance_lists_by_mesh[mesh.key()].values() {
+            if self.instance_list(instance_list_ref).instance_count() == 0 {
+                self.instance_lists_to_purge.push(instance_list_ref);
+            }
+        }
+        for i in 0..self.instance_lists_to_purge.len() {
+            self.remove_instance_list(self.instance_lists_to_purge[i]);
+        }
+    }
 
 
 
