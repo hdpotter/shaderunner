@@ -2,14 +2,36 @@ use wgpu::util::DeviceExt;
 
 use crate::{MeshBuilder, Vertex};
 
+
 /// A mesh on the GPU.
-pub struct Mesh {
+pub enum Mesh {
+    Nonempty(InnerMesh),
+    Empty,
+}
+
+impl Mesh {
+    pub fn new_from_mesh_builder<T: Vertex>(mesh_builder: &MeshBuilder<T>, device: &wgpu::Device) -> Self {
+        if mesh_builder.index_count() > 0 {
+            let mesh = InnerMesh::new_from_mesh_builder(mesh_builder, device);
+
+            Self::Nonempty(mesh)
+        } else {
+            Self::Empty
+        }
+
+    }
+}
+
+
+
+/// A mesh on the GPU that is guaranteed to be nonempty.
+pub struct InnerMesh {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
 }
 
-impl Mesh {
+impl InnerMesh {
     pub fn index_count(&self) -> u32 {
         self.index_count
     }
@@ -23,6 +45,10 @@ impl Mesh {
     }
 
     pub fn new_from_mesh_builder<T: Vertex>(mesh_builder: &MeshBuilder<T>, device: &wgpu::Device) -> Self {
+        let index_count = mesh_builder.indices().len() as u32;
+
+        assert!(index_count > 0);
+
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("vertex buffer"),
@@ -37,7 +63,6 @@ impl Mesh {
                 usage: wgpu::BufferUsages::INDEX,
             }
         );
-        let index_count = mesh_builder.indices().len() as u32;
 
         Self {
             vertex_buffer,

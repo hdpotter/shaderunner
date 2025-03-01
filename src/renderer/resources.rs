@@ -8,13 +8,14 @@ use slotmap::{DefaultKey, HopSlotMap, SecondaryMap, SlotMap};
 
 use crate::{handle::Handle, MeshBuilder, Transform, Vertex};
 
+use super::create_pipeline::create_render_pipeline;
+
 
 pub mod pipeline;
 pub mod mesh;
 pub mod instance_list;
 pub mod instance;
 pub mod uniforms;
-pub mod arena_iterator;
 pub mod many_one;
 pub mod misc;
 pub mod material;
@@ -42,6 +43,7 @@ impl InstanceListRef {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct InstanceRef {
     instance_list_ref: InstanceListRef,
     handle: Handle<Instance>,
@@ -76,6 +78,8 @@ pub struct Resources {
     meshes: SlotMap<DefaultKey, Mesh>,
     instance_lists_by_mesh: SecondaryMap<DefaultKey, SlotMap<DefaultKey, InstanceListRef>>,
 
+    instance_list_coverage: HashMap<(Handle<Material>, Handle<Mesh>), InstanceListRef>,
+
     // necessary to be able to remove an instance list from mesh dependents
     // would prefer not to store it here, but cannot store it in InstanceListRef because we need to be able
     //   to make an InstanceListRef from just material and instance handle and would prefer not to store it
@@ -85,6 +89,14 @@ pub struct Resources {
 }
 
 impl Resources {
+
+    pub fn material(&self, material: Handle<Material>) -> &Material {
+        &self.materials[material]
+    }
+
+    pub fn mesh(&self, mesh: Handle<Mesh>) -> &Mesh {
+        &self.meshes[mesh]
+    }
 
     fn instance_list(&self, instance_list_ref: InstanceListRef) -> &InstanceList {
         &self.instance_lists_by_material
@@ -105,6 +117,8 @@ impl Resources {
         let meshes = SlotMap::new();
         let instance_lists_by_mesh = SecondaryMap::new();
 
+        let instance_list_coverage = HashMap::new();
+
         let instance_list_mesh_backlinks = HashMap::new();
 
         Self {
@@ -112,15 +126,34 @@ impl Resources {
             instance_lists_by_material,
             meshes,
             instance_lists_by_mesh,
+            instance_list_coverage,
             instance_list_mesh_backlinks,
         }
     }
 
     pub fn add_material(
         &mut self,
+        color_format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+        vertex_layouts: &[wgpu::VertexBufferLayout<'_>],
+        pipeline_layout: &wgpu::PipelineLayout,
+        shader: &wgpu::ShaderModule,
+        primitive: wgpu::PrimitiveState,
+        device: &wgpu::Device,
     ) -> Handle<Material> {
+        // create pipeline
+        let pipeline = create_render_pipeline(
+            device,
+            pipeline_layout,
+            color_format,
+            Some(depth_format),
+            vertex_layouts,
+            shader,
+            primitive,
+        );
+
         // create and add mesh
-        let material = Material {};
+        let material = Material::new(pipeline);
         let handle = Handle::insert_hop(&mut self.materials, material);
         
         // add dependent list
@@ -148,12 +181,12 @@ impl Resources {
         handle
     }
 
-    pub fn add_instance_list(
+    fn add_instance_list(
         &mut self,
         material: Handle<Material>,
         mesh: Handle<Mesh>,
         device: &wgpu::Device,
-    ) {
+    ) -> InstanceListRef {
         // create and add instance list
         let instance_list = InstanceList::new(mesh, material, device);
 
@@ -165,12 +198,17 @@ impl Resources {
         let map = &mut self.instance_lists_by_mesh[mesh.key()];
         let handle = Handle::insert(map, instance_list);
 
+        // add to coverage
+        assert!(self.instance_list_coverage.insert((material, mesh), instance_list) == None);
+
         // add mesh backlinks
         self.instance_list_mesh_backlinks.insert(instance_list, handle);
 
+        instance_list
     }
 
-    pub fn remove_instance_list(
+    #[allow(dead_code)]
+    fn remove_instance_list(
         &mut self,
         instance_list: InstanceListRef
     ) {
@@ -222,13 +260,38 @@ impl Resources {
 
 
 
+    pub fn update_instance_buffers(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
+        // todo: custom iterators to provide Handle
+        for material in self.materials.keys() {
+            for instance_list in self.instance_lists_by_material[material].values_mut() {
+                instance_list.build_and_upload_instance_buffer(device, queue);
+            }
+        }
+    }
 
 
 
 
-    pub fn add_instance(&mut self, list: InstanceListRef, transform: Transform) -> InstanceRef {
-        let instance = self.instance_list_mut(list).add_instance(transform);
-        InstanceRef::new(list, instance)
+    fn ensure_instance_list(&mut self, material: Handle<Material>, mesh: Handle<Mesh>, device: &wgpu::Device) -> InstanceListRef {
+        match self.instance_list_coverage.get(&(material, mesh)) {
+            Some(instance) => *instance,
+            None => {
+                let instance = self.add_instance_list(material, mesh, device);
+                self.instance_list_coverage.insert((material, mesh), instance);
+
+                instance
+            }
+        }
+    }
+
+    pub fn add_instance(&mut self, material: Handle<Material>, mesh: Handle<Mesh>, transform: Transform, device: &wgpu::Device) -> InstanceRef {
+        let instance_list = self.ensure_instance_list(material, mesh, device);
+        let instance = self.instance_list_mut(instance_list).add_instance(transform);
+        InstanceRef::new(instance_list, instance)
     }
 
     pub fn update_instance(&mut self, instance: InstanceRef, transform: Transform) {

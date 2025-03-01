@@ -1,7 +1,7 @@
 use cgmath::Vector3;
 use egui::Context;
 use line_renderer::LineRenderer;
-use resources::{instance::{InstanceData, InstanceRef}, instance_list::InstanceList, mesh::Mesh, misc::Misc, pipeline::Pipeline};
+use resources::{instance::InstanceData, instance_list::InstanceList, material::Material, mesh::Mesh, misc::Misc, InstanceRef};
 use winit::window::Window;
 
 use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, handle::Handle, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
@@ -39,8 +39,6 @@ impl Renderer {
     pub fn window(&self) -> &Window {
         &self.window
     }
-
-    // pub fn size(&self) -> 
 
     pub async fn new(window: Window) -> Renderer {
         let size = window.inner_size();
@@ -169,10 +167,9 @@ impl Renderer {
     pub fn render(&mut self) {
 
         // update instance buffers
-        for (_, instance_list) in self.resources.iterate_instance_lists_mut() {
-            instance_list.build_and_upload_instance_buffer(&self.device, &self.queue);
-        }
+        self.resources.update_instance_buffers(&self.device, &self.queue);
         
+        // get output texture
         let output = match self.surface.get_current_texture() {
             Ok(surface_texture) => surface_texture,
             Err(error) => {
@@ -229,12 +226,16 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
-            for (pipeline_handle, pipeline) in self.resources.iterate_pipelines() {
-                render_pass.set_pipeline(pipeline.pipeline());
-                for (_, instance_list) in self.resources.iterate_pipeline_dependents(pipeline_handle) {
-                    let instance_list = &self.resources.instance_lists()[*instance_list];
+            for material in self.resources.iterate_materials() {
+                let material_handle = Handle::new(material); //todo: proper handle iteration and reconsider indirection
+                let material = self.resources.material(material_handle);
 
-                    self.draw_instance_list(&mut render_pass, instance_list, self.misc.camera_bind_group());
+                render_pass.set_pipeline(material.pipeline());
+
+                for instance_list in self.resources.iterate_instance_lists(material_handle) {
+                    if instance_list.instance_count() > 0 {
+                        self.draw_instance_list(&mut render_pass, instance_list, self.misc.camera_bind_group());
+                    }
                 }
             }
 
@@ -260,13 +261,16 @@ impl Renderer {
         instance_list: &InstanceList,
         camera_bind_group: &wgpu::BindGroup,
     ) {
-        let mesh = self.resources.mesh(instance_list.mesh());
-
-        render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
-        render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-        render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.set_bind_group(0, camera_bind_group, &[]);
-        render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
+        match self.resources.mesh(instance_list.mesh()) {
+            Mesh::Nonempty(mesh) => {
+                render_pass.set_vertex_buffer(1, instance_list.instance_buffer().slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.set_bind_group(0, camera_bind_group, &[]);
+                render_pass.draw_indexed(0..mesh.index_count(), 0, 0..instance_list.buffered_instance_count());
+            },
+            Mesh::Empty => (),
+        }
     }
 
     // ================================================================
@@ -276,18 +280,18 @@ impl Renderer {
         self.resources.add_mesh(mesh, &self.device)
     }
 
-    pub fn add_pipeline(
+    pub fn add_material(
         &mut self,
         shader: wgpu::ShaderSource,
         primitive: wgpu::PrimitiveState,
-    ) -> Handle<Pipeline> {
+    ) -> Handle<Material> {
         let shader = wgpu::ShaderModuleDescriptor {
             label: None,
             source: shader,
         };
         let shader = self.device.create_shader_module(shader); //todo: add separate shader so we can separate pipeline creation from shader creation
 
-        self.resources.add_pipeline(
+        self.resources.add_material(
             self.surface_config.format,
             self.depth_format,
             &[ColorNormalVertex::vertex_buffer_layout(), InstanceData::vertex_buffer_layout()],
@@ -298,16 +302,12 @@ impl Renderer {
         )
     }
 
-    pub fn add_instance_list(&mut self, pipeline: Handle<Pipeline>, mesh: Handle<Mesh>) -> Handle<InstanceList> {
-        self.resources.add_instance_list(pipeline, mesh, &self.device)
-    }
-
     pub fn remove_mesh(&mut self, mesh: Handle<Mesh>) {
         self.resources.remove_mesh(mesh);
     }
 
-    pub fn add_instance(&mut self, list: Handle<InstanceList>, transform: Transform) -> InstanceRef {
-        self.resources.add_instance(list, transform)
+    pub fn add_instance(&mut self, material: Handle<Material>, mesh: Handle<Mesh>, transform: Transform) -> InstanceRef {
+        self.resources.add_instance(material, mesh, transform, &self.device)
     }
 
     pub fn update_instance(&mut self, instance: InstanceRef, transform: Transform) {
