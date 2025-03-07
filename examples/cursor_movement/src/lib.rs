@@ -10,6 +10,7 @@ pub struct CursorGame {
     cursor_position: PhysicalPosition<f64>,
 }
 
+
 impl Game for CursorGame {
     async fn new(window: Window) -> Self {
         let mut renderer = Renderer::new(window).await;
@@ -66,6 +67,8 @@ impl Game for CursorGame {
     }
 }
 
+
+#[cfg_attr(target_arch="wasm32", wasm_bindgen::prelude::wasm_bindgen(start))]
 fn main() {
     pollster::block_on(
         shaderunner::window::run_program::<GameProgram<CursorGame>>()

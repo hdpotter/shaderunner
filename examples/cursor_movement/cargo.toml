@@ -1,0 +1,9 @@
+[package]
+name = "cursor_movement"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cgmath = "0.18.0"

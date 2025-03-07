@@ -142,20 +142,28 @@ impl Game for ExampleGame {
 use wasm_bindgen::prelude::*;
 
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn run() {
+// #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+// #[wasm_bindgen(start)]
+// pub fn run2() {
+// }
+
+// #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+#[wasm_bindgen(start)]
+pub fn run() {
+    web_sys::console::log_1(&wasm_bindgen::JsValue::TRUE);
+
     // std::env::set_var("RUST_BACKTRACE", "1");
     
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+    // cfg_if::cfg_if! {
+    //     if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
 
             log::info!("logging works!");
-        }
-    }
+    //     }
+    // }
 
-    shaderunner::window::run_program::<GameProgram<ExampleGame>>().await;
+    // shaderunner::window::run_program::<GameProgram<ExampleGame>>().await;
 }
 
 pub fn main() {

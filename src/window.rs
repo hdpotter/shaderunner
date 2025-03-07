@@ -116,7 +116,26 @@ impl<T: Program> ApplicationHandler for OuterProgram<T> {
                     .with_title("shaderunner app")
                     .with_inner_size(size);
                 let window = event_loop.create_window(window_attributes).unwrap();
-        
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // window.set_inner_size(PhysicalSize::new(800, 600));
+                    
+                    use winit::platform::web::WindowExtWebSys;
+                    web_sys::window()
+                    .and_then(|win| win.document())
+                    .and_then(|doc| {
+                        let dst = doc.get_element_by_id("wasm-example")?;
+                        let canvas = web_sys::Element::from(window.canvas()?);
+                        dst.append_child(&canvas).ok()?;
+                        Some(())
+                    })
+                    .expect("couldn't append canvas to document body");
+            
+                    let size_result = window.request_inner_size(size);
+                    log::info!("size_result: {:?}", size_result);
+                }
+
                 self.program = Some(T::new(window));
             },
             Some(program) => {
@@ -188,25 +207,6 @@ pub async fn run_program<T: Program + 'static>() {
     let event_loop = EventLoop::new().unwrap();
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        // window.set_inner_size(PhysicalSize::new(800, 600));
-        
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-        .and_then(|win| win.document())
-        .and_then(|doc| {
-            let dst = doc.get_element_by_id("wasm-example")?;
-            let canvas = web_sys::Element::from(window.canvas()?);
-            dst.append_child(&canvas).ok()?;
-            Some(())
-        })
-        .expect("couldn't append canvas to document body");
-
-        let size_result = window.request_inner_size(size);
-        log::info!("size_result: {:?}", size_result);
-    }
 
     let mut outer_program = OuterProgram::<T>::new();
 

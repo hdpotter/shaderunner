@@ -41,3 +41,8 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Element",
 ]}
+
+
+[[example]]
+name = "cursor_movement"
+path = "examples/cursor_movement/src/lib.rs"
