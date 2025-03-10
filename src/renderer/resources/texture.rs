@@ -94,5 +94,27 @@ impl Texture {
             device,
         )
     }
+
+    pub fn new_from_procedure<F>(
+        width: u32,
+        height: u32,
+        mut procedure: F,
+        queue: &wgpu::Queue,
+        device: &wgpu::Device,
+    ) -> Self 
+    where F: FnMut(u32, u32) -> [u8; 4]
+    {
+        let mut image = ImageBuffer::new(width, height);
+
+        for (x, y, pixel) in image.enumerate_pixels_mut() {
+            *pixel = image::Rgba(procedure(x, y));
+        }
+
+        Self::new_from_image(
+            &image,
+            queue,
+            device,
+        )
+    }
 }
 

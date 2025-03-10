@@ -11,9 +11,10 @@ use self::resources::Resources;
 pub mod create_pipeline;
 
 pub mod resources;
-pub mod line_renderer;
 pub mod resizable_buffer;
 pub mod texture;
+pub mod line_renderer;
+pub mod texture_renderer;
 
 
 pub struct Renderer {
@@ -25,7 +26,6 @@ pub struct Renderer {
     depth_format: wgpu::TextureFormat,
 
     queue: wgpu::Queue,
-    line_pipeline: wgpu::RenderPipeline,
 
     line_renderer: LineRenderer,
     
@@ -97,32 +97,13 @@ impl Renderer {
         let misc = Misc::new(&surface_config, &device);
 
         let depth_format = wgpu::TextureFormat::Depth32Float;
-        
-        let line_pipeline = {
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("line_shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("line_shader.wgsl").into()),
-            };
-            let shader = device.create_shader_module(shader);
 
-            let line_primitive = wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineList,
-                front_face: wgpu::FrontFace::Ccw,
-                .. Default::default()
-            };
-
-            create_pipeline::create_render_pipeline(
-                &device,
-                misc.pipeline_layout(),
-                surface_config.format,
-                Some(depth_format),
-                &[ColorVertex::vertex_buffer_layout()],
-                &shader,
-                line_primitive,
-            )
-        };
-
-        let line_renderer = LineRenderer::new(&device);
+        let line_renderer = LineRenderer::new(
+            &device,
+            misc.pipeline_layout(),
+            surface_config.format,
+            depth_format,
+        );
 
         let ui_manager = UIManager::new(
             &window,
@@ -141,7 +122,6 @@ impl Renderer {
             depth_format,
 
             queue,
-            line_pipeline,
 
             line_renderer,
             ui_manager,
@@ -240,12 +220,10 @@ impl Renderer {
             }
 
             // draw lines
-            render_pass.set_pipeline(&self.line_pipeline);
             self.line_renderer.render_and_clear(
                 &mut render_pass,
                 self.misc.camera_bind_group(),
             );
-            
 
             // draw ui
             self.ui_manager.render(&mut render_pass.forget_lifetime()); // egui makes us forget lifetime

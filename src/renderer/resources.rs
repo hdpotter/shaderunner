@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use image::ImageBuffer;
 use instance::Instance;
 use instance_list::InstanceList;
 use material::Material;
 use mesh::Mesh;
 use slotmap::{DefaultKey, HopSlotMap, SecondaryMap, SlotMap};
+use texture::Texture;
 
 use crate::{handle::Handle, MeshBuilder, Transform, Vertex};
 
@@ -88,7 +90,9 @@ pub struct Resources {
     //   to make an InstanceListRef from just material and instance handle and would prefer not to store it
     //   on InstanceList because InstanceList shouldn't know about Resources structure, and we would need to
     //   use some kind of trick to deal with the chicken-egg problem
-    instance_list_mesh_backlinks: HashMap<InstanceListRef, Handle<InstanceListRef>>
+    instance_list_mesh_backlinks: HashMap<InstanceListRef, Handle<InstanceListRef>>,
+
+    textures: SlotMap<DefaultKey, Texture>,
 }
 
 impl Resources {
@@ -99,6 +103,10 @@ impl Resources {
 
     pub fn mesh(&self, mesh: Handle<Mesh>) -> &Mesh {
         &self.meshes[mesh]
+    }
+
+    pub fn texture(&self, texture: Handle<Texture>) -> &Texture {
+        &self.textures[texture]
     }
 
     fn instance_list(&self, instance_list_ref: InstanceListRef) -> &InstanceList {
@@ -126,6 +134,8 @@ impl Resources {
 
         let instance_list_mesh_backlinks = HashMap::new();
 
+        let textures = SlotMap::new();
+
         Self {
             materials,
             instance_lists_by_material,
@@ -134,6 +144,7 @@ impl Resources {
             instance_list_coverage,
             instance_lists_to_purge,
             instance_list_mesh_backlinks,
+            textures,
         }
     }
 
@@ -185,6 +196,16 @@ impl Resources {
 
         // return
         handle
+    }
+
+    pub fn add_texture(
+        &mut self,
+        texture: &ImageBuffer<image::Rgba<u8>, Vec<u8>>,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> Handle<Texture> {
+        let texture = Texture::new_from_image(texture, queue, device); //todo: TextureBuilder that wraps ImageBuffer
+        Handle::insert(&mut self.textures, texture)
     }
 
     fn add_instance_list(
