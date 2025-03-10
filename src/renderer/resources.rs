@@ -19,6 +19,7 @@ pub mod uniforms;
 pub mod many_one;
 pub mod misc;
 pub mod material;
+pub mod texture;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct InstanceListRef {
