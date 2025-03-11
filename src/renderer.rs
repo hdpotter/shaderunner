@@ -1,7 +1,9 @@
-use cgmath::Vector3;
+use cgmath::{Vector2, Vector3};
 use egui::Context;
+use image::ImageBuffer;
 use line_renderer::LineRenderer;
-use resources::{instance::InstanceData, instance_list::InstanceList, material::Material, mesh::Mesh, misc::Misc, InstanceRef};
+use resources::{instance::InstanceData, instance_list::InstanceList, material::Material, mesh::Mesh, misc::Misc, texture::Texture, InstanceRef};
+use texture_renderer::TextureRenderer;
 use winit::window::Window;
 
 use crate::{color_normal_vertex::ColorNormalVertex, color_vertex::ColorVertex, handle::Handle, mesh_builder::{MeshBuilder, Vertex}, scene::{camera::Camera, light::{AmbientLight, DirectionalLight}, Transform}, UIManager};
@@ -28,7 +30,7 @@ pub struct Renderer {
     queue: wgpu::Queue,
 
     line_renderer: LineRenderer,
-    
+    texture_renderer: TextureRenderer,
     ui_manager: UIManager,
 
     resources: Resources,
@@ -105,6 +107,13 @@ impl Renderer {
             depth_format,
         );
 
+        let texture_renderer = TextureRenderer::new(
+            &device,
+            misc.texture_bind_group_layout(),
+            surface_config.format,
+            depth_format,
+        );
+
         let ui_manager = UIManager::new(
             &window,
             &device,
@@ -124,6 +133,7 @@ impl Renderer {
             queue,
 
             line_renderer,
+            texture_renderer,
             ui_manager,
 
             resources,
@@ -158,9 +168,9 @@ impl Renderer {
             },
         };
 
-        // update line renderer
+        // update line renderer and texture renderer
         self.line_renderer.update_buffer(&self.device, &self.queue);
-
+        self.texture_renderer.update_buffer(&self.device, &self.queue);
 
         // let output = self.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -225,6 +235,11 @@ impl Renderer {
                 self.misc.camera_bind_group(),
             );
 
+            // draw textures
+            self.texture_renderer.render_and_clear(
+                &mut render_pass,
+            );
+
             // draw ui
             self.ui_manager.render(&mut render_pass.forget_lifetime()); // egui makes us forget lifetime
         }
@@ -284,6 +299,10 @@ impl Renderer {
         self.resources.remove_mesh(mesh);
     }
 
+    pub fn add_texture(&mut self, texture: &ImageBuffer<image::Rgba<u8>, Vec<u8>>) -> Handle<Texture> {
+        self.resources.add_texture(texture, &self.device, &self.queue)
+    }
+
     pub fn add_instance(&mut self, material: Handle<Material>, mesh: Handle<Mesh>, transform: Transform) -> InstanceRef {
         self.resources.add_instance(material, mesh, transform, &self.device)
     }
@@ -339,6 +358,26 @@ impl Renderer {
         let start = ColorVertex::new(start, blue);
         let end = ColorVertex::new(end, blue);
         self.draw_line(start, end);
+    }
+
+    // ================================================================
+    // immediate mode texture drawing
+    // ================================================================
+
+    pub fn draw_texture(
+        &mut self,
+        texture: Handle<Texture>,
+        lower_left: Vector2<f32>,
+        upper_right: Vector2<f32>,
+    ) {
+        self.texture_renderer.draw_texture(
+            texture,
+            lower_left,
+            upper_right,
+            &self.device,
+            self.misc.texture_bind_group_layout(),
+            &self.resources,
+        );
     }
 
     // ================================================================

@@ -11,6 +11,8 @@ pub struct Misc {
     camera_bind_group_layout: wgpu::BindGroupLayout,
     camera_bind_group: wgpu::BindGroup,
     
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+
     pipeline_layout: wgpu::PipelineLayout,
 
     depth_texture: wgpu::Texture,
@@ -30,6 +32,10 @@ impl Misc {
         &self.camera_bind_group
     }
 
+    pub fn texture_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.texture_bind_group_layout
+    }
+
     pub fn depth_texture(&self) -> &wgpu::Texture {
         &self.depth_texture
     }
@@ -47,7 +53,29 @@ impl Misc {
             camera_bind_group_layout,
             camera_bind_group
         ) = create_camera_bind_group_and_layout(&camera.camera_buffer(), &lights.light_buffer(), device);
-        
+
+        let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+            label: Some("texture bind group layout"),
+        });
+
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("pipeline layout"),
             bind_group_layouts: &[
@@ -67,6 +95,7 @@ impl Misc {
             lights,
             camera_bind_group_layout,
             camera_bind_group,
+            texture_bind_group_layout,
             pipeline_layout,
             depth_texture,
             depth_texture_view,
